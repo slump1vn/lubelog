@@ -185,3 +185,77 @@ Kỹ thuật: system prompt chứa danh sách xe của user (tên, biệt danh, 
 | 6 | liên tục | Đo độ chính xác với bộ ảnh mẫu, tinh chỉnh prompt/model, backup |
 
 **Bước tiếp theo:** bắt đầu giai đoạn 0–1 trong repo này.
+
+---
+
+## 9. App điện thoại (Android + iOS)
+
+### 9.1 Vai trò so với web và Zalo
+
+| Kênh | Dùng để |
+|---|---|
+| **App điện thoại** | Kênh chính hằng ngày: xem xe, lịch nhắc, nhập liệu, chụp ảnh, báo cáo; dùng được khi mất mạng |
+| **Zalo** | Nhập nhanh bằng tin nhắn, nhận nhắc lịch, cho thành viên không muốn cài app |
+| **Web (LubeLogger)** | Quản trị, cấu hình, nhập/xuất dữ liệu, xem trên máy tính |
+
+Cả ba kênh dùng chung một máy chủ tại nhà và một cơ sở dữ liệu; app **không chạy AI trên máy**, chỉ gửi chữ/ảnh về máy chủ.
+
+### 9.2 Công nghệ
+- **Flutter** (một mã nguồn cho Android và iOS; camera, lưu ngoại tuyến, thông báo đều có thư viện chín muồi).
+  - Phương án thay thế: .NET MAUI (cùng ngôn ngữ C# với máy chủ) — chỉ nên chọn nếu người phát triển chỉ biết C#.
+- Quản lý trạng thái: Riverpod. Lưu ngoại tuyến: SQLite (Drift). Gọi API: Dio.
+- Thư mục `mobile/` trong cùng repo này.
+
+### 9.3 Màn hình
+
+1. **Đăng nhập / kết nối máy chủ** — nhập địa chỉ máy chủ (hoặc quét mã QR hiển thị trên web), đăng nhập, lưu token trong kho bảo mật của máy; mở khoá bằng vân tay/khuôn mặt.
+2. **Gara** — danh sách xe (ô tô/xe máy), số km hiện tại, huy hiệu "sắp đến hạn / quá hạn".
+3. **Chi tiết xe** — các thẻ: Lịch nhắc, Lịch sử bảo dưỡng, Xăng, Chi phí, Ắc quy & lốp, Giấy tờ (đăng kiểm, bảo hiểm).
+4. **Nút "+" nhập nhanh** (ở mọi màn hình):
+   - 💬 Chat với AI (gõ hoặc **nói** — chuyển giọng nói thành chữ bằng tính năng có sẵn của điện thoại).
+   - 📷 Chụp hoá đơn.
+   - 🏦 Ảnh chuyển khoản (chọn từ thư viện ảnh).
+   - ✍️ Nhập tay (biểu mẫu).
+5. **Xác nhận bản nháp** — hiển thị kết quả AI đọc cạnh ảnh gốc, ô nào AI không chắc được tô vàng; sửa rồi bấm Lưu.
+6. **Hộp chờ** — các ảnh đang xử lý / chờ xác nhận / chưa ghép được hoá đơn.
+7. **Chi phí & báo cáo** — biểu đồ theo tháng, theo xe, theo loại; chi phí mỗi km.
+8. **Cài đặt** — thành viên gia đình, danh mục chi phí, lịch bảo dưỡng mẫu, thông báo.
+
+### 9.4 Tính năng riêng của app
+- **Chia sẻ thẳng vào app:** trong app ngân hàng bấm "Chia sẻ" ảnh giao dịch → chọn app này → tự vào luồng đọc ảnh chuyển khoản (không cần lưu ảnh rồi mở lại).
+- **Chụp hoá đơn tốt hơn:** tự dò mép giấy, cắt, nắn thẳng, nén trước khi gửi → AI tại nhà đọc chính xác và nhanh hơn.
+- **Dùng khi mất mạng:** xem dữ liệu đã tải; bản ghi và ảnh mới xếp hàng chờ, tự gửi khi có mạng. Xung đột: bản ghi sửa sau cùng thắng, có nhật ký thay đổi.
+- **Nhắc lịch:**
+  - Nhắc theo ngày (đăng kiểm, bảo hiểm, thay dầu theo tháng): app tự hẹn **thông báo trên máy** sau mỗi lần đồng bộ — không phụ thuộc dịch vụ ngoài, hoạt động cả khi máy chủ tắt.
+  - Nhắc theo km và việc AI xử lý xong: cần thông báo đẩy từ máy chủ. Dùng Firebase (FCM) chỉ để chuyển tín hiệu "có cập nhật", nội dung không chứa dữ liệu cá nhân; ai không muốn dùng Firebase thì nhận nhắc qua Zalo.
+- **Cập nhật số km nhanh:** tiện ích ngoài màn hình chính hoặc chụp ảnh đồng hồ công-tơ-mét để AI đọc số.
+
+### 9.5 Việc cần làm phía máy chủ
+- API hiện có của LubeLogger (`Controllers/API`) đã đọc/ghi được xe, bảo dưỡng, xăng, nhắc lịch… Bổ sung:
+  - Đăng nhập bằng token cho app (thay vì gửi mật khẩu mỗi lần), thu hồi được theo từng thiết bị.
+  - `/api/ai/chat`, `/api/ai/ingest` (tải ảnh), `/api/ai/jobs/{id}` (trạng thái, bản nháp), `/api/ai/jobs/{id}/confirm`.
+  - `/api/sync?since=` trả về thay đổi từ lần đồng bộ trước (cần thêm `UpdatedAt` và đánh dấu xoá mềm cho các bảng).
+  - API cho `ExpenseRecord`, báo cáo, đăng ký thiết bị nhận thông báo.
+- Truy cập từ ngoài nhà: dùng chung đường Cloudflare Tunnel đã dựng cho Zalo (HTTPS).
+
+### 9.6 Phát hành
+- **Android:** cài file APK trực tiếp cho cả nhà, hoặc đưa lên Google Play dạng thử nghiệm nội bộ (phí một lần 25 USD).
+- **iOS:** cần tài khoản Apple Developer (99 USD/năm), phát qua TestFlight (bản thử hết hạn sau 90 ngày, phải cập nhật định kỳ). Nếu cả nhà dùng Android thì bỏ qua iOS ở giai đoạn đầu.
+
+### 9.7 Lộ trình app (chạy sau khi máy chủ xong giai đoạn 1–2, song song với Zalo/AI)
+
+| Bước | Thời gian | Nội dung | Kết quả |
+|---|---|---|---|
+| A1 | 1 tuần | API token, `/api/sync`, khung app Flutter, đăng nhập, quét QR | App kết nối được máy chủ |
+| A2 | 2 tuần | Gara, chi tiết xe, lịch nhắc, lịch sử, nhập tay bảo dưỡng/xăng/chi phí | Dùng thay web cho việc hằng ngày |
+| A3 | 1–2 tuần | Lưu ngoại tuyến + hàng chờ đồng bộ, thông báo trên máy | Dùng được khi mất mạng |
+| A4 | 2 tuần | Chat AI, chụp hoá đơn (dò mép giấy), ảnh chuyển khoản, chia sẻ từ app ngân hàng, màn hình xác nhận, hộp chờ | Nhập liệu bằng AI trên app |
+| A5 | 1 tuần | Báo cáo/biểu đồ, thông báo đẩy, vân tay/khuôn mặt | Bản đầy đủ |
+| A6 | 1 tuần | Thử với cả nhà, sửa lỗi, phát hành APK/TestFlight | Bản 1.0 |
+
+Tổng: **8–9 tuần** cho app; toàn dự án (máy chủ + Zalo + AI + app) khoảng **4–5 tháng** với một người làm.
+
+### 9.8 Điểm cần chốt cho app
+1. Cả nhà dùng Android, iPhone, hay cả hai?
+2. Chấp nhận dùng Firebase để đẩy thông báo, hay chỉ nhắc trên máy + Zalo?
+3. Có cần nhập bằng giọng nói ngay từ bản đầu không?
