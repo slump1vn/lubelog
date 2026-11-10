@@ -118,8 +118,70 @@ Kỹ thuật: system prompt chứa danh sách xe của user (tên, biệt danh, 
 - Chỉ số: độ chính xác tổng tiền, ngày, km, phân loại hạng mục; tỷ lệ phải sửa tay.
 - Unit test cho parser tiền tệ/ngày tiếng Việt và logic ghép cặp CK.
 
-## 7. Điểm cần chốt
-1. Kênh nhập chính: web/PWA hay Zalo/Telegram?
-2. AI cloud (chính xác hơn) hay local (riêng tư, cần máy mạnh)?
-3. Số người dùng/xe dự kiến → LiteDB (đơn giản) hay PostgreSQL.
-4. Có cần quản lý chi phí ngoài bảo trì (xăng, gửi xe, phí đường bộ) không.
+## 7. Quyết định đã chốt
+
+| Câu hỏi | Quyết định |
+|---|---|
+| Kênh nhập chính | **Zalo** (Zalo Official Account + webhook) |
+| AI | **Chạy tại nhà** (local, không gửi dữ liệu ra ngoài) |
+| CSDL | **LiteDB** (1 file, đơn giản, đủ cho gia đình) |
+| Phạm vi chi phí | **Quản lý mọi chi phí xe**, không chỉ bảo trì |
+
+### 7.1 Kênh Zalo
+- Tạo **Zalo Official Account** (OA) cho gia đình, đăng ký ứng dụng tại developers.zalo.me, bật webhook sự kiện `user_send_text`, `user_send_image`, `user_send_file`.
+- Thêm `ZaloController` (`/api/zalo/webhook`):
+  - Xác thực chữ ký webhook (`X-ZEvent-Signature` = SHA256(appId + body + timestamp + OA secret key)).
+  - Tải ảnh từ URL Zalo trả về → lưu qua `FilesController` → đưa vào `AiIngestionService`.
+  - Trả lời bằng OA API "gửi tin tư vấn" (trong 7 ngày kể từ tin cuối của người dùng — đủ cho luồng hỏi–đáp).
+- **Liên kết tài khoản:** mỗi thành viên gửi mã liên kết (vd `/lienket 123456`, mã lấy từ trang cá nhân trên web) → lưu `ZaloUserId ↔ UserId`. Người lạ chưa liên kết bị bỏ qua.
+- **Xác nhận trong chat:** bot gửi tóm tắt bản nháp kèm lựa chọn trả lời nhanh: `1 = Lưu`, `2 = Sửa`, `3 = Huỷ`. Sửa bằng câu tự nhiên ("sửa số km thành 12400").
+- **Nhắc lịch qua Zalo:** job hằng ngày (dùng cơ chế reminder sẵn có) gửi tin "Sắp đến hạn thay dầu xe Vision (còn 200 km)". Ngoài khung 7 ngày → dùng ZNS hoặc email fallback.
+- Server cần **HTTPS công khai** để Zalo gọi webhook: dùng Cloudflare Tunnel (miễn phí, không cần mở cổng router) trỏ về máy chủ tại nhà.
+- Access token OA hết hạn sau ~25 giờ → job tự refresh bằng refresh token, lưu trong LiteDB.
+
+### 7.2 AI chạy tại nhà
+- **Runtime:** Ollama (Docker), gọi qua HTTP từ `OllamaAiProvider : IAiProvider`.
+- **Model đề xuất** (thử nghiệm, chọn cái tốt nhất với bộ ảnh mẫu):
+  - Hiểu ảnh hoá đơn/CK: model vision đa ngôn ngữ cỡ 7–8B (vd họ Qwen-VL hoặc Gemma 3 có vision).
+  - Chat + tool calling: model 7–14B hỗ trợ tiếng Việt và JSON tốt.
+- **Phần cứng tối thiểu:** GPU 8 GB VRAM (vd RTX 3060) hoặc Mac Apple Silicon 16 GB; chạy CPU được nhưng chậm (30–90 giây/ảnh) — chấp nhận được vì Zalo là bất đồng bộ (bot gửi "Đang đọc hoá đơn…" trước).
+- **Tăng độ chính xác khi model nhỏ:**
+  1. Tiền xử lý ảnh (xoay, cắt, tăng tương phản) bằng ImageSharp.
+  2. Tuỳ chọn OCR chuyên dụng trước (PaddleOCR + VietOCR trong container Python) → đưa text cho LLM, LLM chỉ còn việc cấu trúc hoá.
+  3. Ép đầu ra JSON theo schema (`format: json` của Ollama) + validator phía .NET; sai thì hỏi lại người dùng thay vì đoán.
+  4. Bộ luật regex cho ảnh CK của các ngân hàng phổ biến (bố cục cố định) — nhanh và chính xác hơn LLM.
+- Hàng đợi xử lý 1 job/lần (`BackgroundService` + `Channel<T>`) để không quá tải GPU.
+
+### 7.3 LiteDB
+- Giữ mặc định của LubeLogger, không cần cấu hình Postgres.
+- Bảng mới: `ExpenseRecord`, `AiIngestionJob`, `ZaloLink`, `ZaloToken`, `MaintenanceTemplate`.
+- LiteDB khoá ghi theo file → mọi ghi từ webhook/AI worker đi qua cùng repository có sẵn, tránh mở nhiều kết nối.
+- **Sao lưu:** job đêm copy file `.db` + thư mục ảnh (LubeLogger có sẵn tính năng backup zip) sang ổ khác / Google Drive.
+
+### 7.4 Quản lý mọi chi phí xe
+
+| Loại chi phí | Lưu vào | Ghi chú |
+|---|---|---|
+| Bảo dưỡng, sửa chữa | `ServiceRecord` / `CollisionRecord` (sửa chữa) | như mục 2 |
+| Xăng, sạc điện | `GasRecord` (có sẵn) | tính L/100km, đ/km |
+| Phí đường bộ, đăng kiểm, bảo hiểm (TNDS, thân vỏ) | `TaxRecord` (có sẵn, có lặp lại) | tự nhắc gia hạn |
+| Phụ kiện, nâng cấp | `UpgradeRecord` (có sẵn) | |
+| **Gửi xe, phí BOT/ETC, rửa xe, phạt nguội, thuê lái, vé tháng, khác** | **`ExpenseRecord` mới** | `Category`, `Amount`, `Date`, `VehicleId`, `Payment`, `Note`, `Source` |
+
+- Danh mục chi phí người dùng tự thêm/sửa; AI phân loại tự động ("rửa xe 50k" → Rửa xe; "gửi xe tháng 11 300k" → Gửi xe, lặp hằng tháng).
+- Ảnh CK không ghép được với hoá đơn nào → mặc định tạo `ExpenseRecord` và hỏi loại chi phí.
+- **Báo cáo:** tổng chi theo xe / loại / tháng / thành viên, chi phí trên mỗi km, so sánh cùng kỳ; lệnh Zalo `/baocao` hoặc "tháng này tiêu bao nhiêu" trả về tóm tắt; báo cáo tự động ngày 1 hằng tháng.
+
+## 8. Lộ trình (cập nhật)
+
+| Giai đoạn | Thời gian | Nội dung |
+|---|---|---|
+| 0 | 1 tuần | Fork, Docker Compose (LubeLogger + Ollama + Cloudflare Tunnel), Việt hoá, VNĐ |
+| 1 | 2–3 tuần | Lõi bảo trì ô tô/xe máy, template, reminder tự sinh, ắc quy/lốp |
+| 2 | 1–2 tuần | `ExpenseRecord` + danh mục + báo cáo chi phí tổng hợp |
+| 3 | 2 tuần | Zalo OA: webhook, liên kết tài khoản, gửi nhắc lịch, xác nhận 1/2/3 |
+| 4 | 2 tuần | AI local: chat → bản nháp qua Ollama, tool calling, hàng đợi |
+| 5 | 2–3 tuần | Ảnh hoá đơn + ảnh CK (OCR + LLM + luật ngân hàng), ghép cặp, mask STK |
+| 6 | liên tục | Đo độ chính xác với bộ ảnh mẫu, tinh chỉnh prompt/model, backup |
+
+**Bước tiếp theo:** bắt đầu giai đoạn 0–1 trong repo này.
