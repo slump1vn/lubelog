@@ -523,7 +523,7 @@ namespace CarCareTracker.Logic
             prompt.AppendLine("- Mọi số tiền là số nguyên tính bằng đồng, không có dấu phân cách: 1.200.000đ = 1200000.");
             prompt.AppendLine("- date: ngày trên chứng từ, dạng yyyy-MM-dd; chuỗi rỗng nếu không thấy.");
             prompt.AppendLine("- Trường nào không có trên ảnh thì để chuỗi rỗng hoặc 0. Không được đoán.");
-            prompt.AppendLine("Với receipt: vendor = tên cửa hàng; total = tổng tiền phải trả (đã gồm VAT); odometer = số km ghi trên phiếu; plate = biển số xe; lines = từng dòng hàng hoá/dịch vụ với name (giữ nguyên chữ trên phiếu) và amount (thành tiền của dòng).");
+            prompt.AppendLine("Với receipt: vendor = tên cửa hàng; total = tổng tiền phải trả (đã gồm VAT); odometer = số km chỉ khi phiếu ghi rõ \"Km\" hoặc \"số km\", là số nguyên; không lấy số trong biển số, số điện thoại hay số hoá đơn, không có thì 0; plate = biển số xe; lines = từng dòng hàng hoá/dịch vụ với name (giữ nguyên chữ trên phiếu) và amount (thành tiền của dòng).");
             prompt.AppendLine("Với transfer: total = số tiền chuyển; bank = tên ngân hàng/ví của người chuyển; reference = mã giao dịch; recipient = TÊN người nhận; content = nội dung chuyển khoản. KHÔNG ghi số tài khoản vào bất kỳ trường nào.");
             return prompt.ToString();
         }
@@ -573,6 +573,13 @@ namespace CarCareTracker.Logic
             if (!string.IsNullOrWhiteSpace(payment.Recipient)) { parts.Add($"{_translator.Translate(language, "Recipient")}: {payment.Recipient}"); }
             if (!string.IsNullOrWhiteSpace(payment.Content)) { parts.Add($"{_translator.Translate(language, "Transfer content")}: {payment.Content}"); }
             return string.Join(" · ", parts);
+        }
+        //vision models sometimes copy the digits of the plate (59X2-678.90) into the odometer.
+        public static bool OdometerFromPlate(decimal odometer, string? plate)
+        {
+            var plateDigits = new string((plate ?? string.Empty).Where(char.IsDigit).ToArray());
+            var odometerDigits = ((long)Math.Floor(odometer)).ToString(CultureInfo.InvariantCulture);
+            return plateDigits.Length >= 3 && odometerDigits.Length >= 3 && plateDigits.Contains(odometerDigits);
         }
         private static bool IsValidTempLocation(string location)
         {
@@ -764,7 +771,7 @@ namespace CarCareTracker.Logic
             {
                 notes.AppendLine($"- {Clean(line.name, 80)}: {line.amount.ToString("C")}");
             }
-            int receiptMileage = image.odometer > 0 && image.odometer < 2000000 ? (int)image.odometer : 0;
+            int receiptMileage = image.odometer >= 10 && image.odometer < 2000000 && image.odometer == Math.Floor(image.odometer) && !OdometerFromPlate(image.odometer, image.plate) ? (int)image.odometer : 0;
             response.Draft = new AiDraft
             {
                 Intent = receiptIntent,
