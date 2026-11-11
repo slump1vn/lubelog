@@ -4,7 +4,7 @@ Máy chủ: llama-swap + llama.cpp b9152 tại 192.168.2.135:9292, ctx 4096.
 
 | Mô hình | Kết quả | Thời gian |
 |---|---|---|
-| qwen3-vl (Qwen3VL-8B-Instruct Q4_K_M + mmproj F16) | 27/28 trường đúng (96%) | 3,7–6,8 giây/ảnh |
+| qwen3-vl (Qwen3VL-8B-Instruct Q4_K_M + mmproj F16) | 27/28 (96%) trước khi sửa, 28/28 (100%) sau khi sửa | 3,7–6,8 giây/ảnh |
 | gemma4 (gemma-4-12b-it Q4_K_M) | 0/4 ảnh, lỗi 500 "image input is not supported" | — |
 
 ## qwen3-vl theo từng ảnh
