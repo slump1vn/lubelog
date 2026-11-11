@@ -375,6 +375,83 @@ namespace CarCareTracker.Helper
                 Console.WriteLine("Created config directory");
             }
         }
+        /// <summary>
+        /// Copies translations shipped in wwwroot/defaults/translations into data/translations.
+        /// Existing files are kept; only keys they do not have yet are added, so user edits survive upgrades.
+        /// </summary>
+        public static void SeedBundledTranslations(string webRootPath, string webContentPath)
+        {
+            try
+            {
+                var bundledPath = Path.Combine(webRootPath, "defaults", "translations");
+                if (!Directory.Exists(bundledPath))
+                {
+                    return;
+                }
+                var targetPath = Path.Combine(webContentPath, "data", "translations");
+                Directory.CreateDirectory(targetPath);
+                foreach (var bundledFile in Directory.GetFiles(bundledPath, "*.json"))
+                {
+                    var targetFile = Path.Combine(targetPath, Path.GetFileName(bundledFile));
+                    if (!File.Exists(targetFile))
+                    {
+                        File.Copy(bundledFile, targetFile);
+                        continue;
+                    }
+                    var bundled = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(bundledFile)) ?? new Dictionary<string, string>();
+                    var existing = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(targetFile)) ?? new Dictionary<string, string>();
+                    var missing = bundled.Where(x => !existing.ContainsKey(x.Key)).ToList();
+                    if (missing.Any())
+                    {
+                        foreach (var entry in missing)
+                        {
+                            existing[entry.Key] = entry.Value;
+                        }
+                        File.WriteAllText(targetFile, System.Text.Json.JsonSerializer.Serialize(existing));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unable to install bundled translations: {ex.Message}");
+            }
+        }
+        /// <summary>
+        /// Adds extra fields to equipment records so batteries and tires can be profiled (brand, size, install date, warranty).
+        /// Runs once; a marker file prevents the fields from being re-added after a user removes them.
+        /// </summary>
+        public static void SeedFamilyDefaults(string webContentPath, CarCareTracker.External.Interfaces.IExtraFieldDataAccess extraFieldDataAccess)
+        {
+            try
+            {
+                var dataPath = Path.Combine(webContentPath, "data");
+                var markerFile = Path.Combine(dataPath, ".family_defaults");
+                if (File.Exists(markerFile))
+                {
+                    return;
+                }
+                Directory.CreateDirectory(dataPath);
+                var equipmentFields = extraFieldDataAccess.GetExtraFieldsById((int)ImportMode.EquipmentRecord);
+                if (!equipmentFields.ExtraFields.Any())
+                {
+                    equipmentFields.Id = (int)ImportMode.EquipmentRecord;
+                    equipmentFields.ExtraFields = new List<ExtraField>
+                    {
+                        new ExtraField { Name = "Hãng", FieldType = ExtraFieldType.Text },
+                        new ExtraField { Name = "Thông số / Kích cỡ", FieldType = ExtraFieldType.Text },
+                        new ExtraField { Name = "Ngày lắp", FieldType = ExtraFieldType.Date },
+                        new ExtraField { Name = "Hạn bảo hành", FieldType = ExtraFieldType.Date },
+                        new ExtraField { Name = "Mã DOT (lốp)", FieldType = ExtraFieldType.Text }
+                    };
+                    extraFieldDataAccess.SaveExtraFields(equipmentFields);
+                }
+                File.WriteAllText(markerFile, DateTime.UtcNow.ToString("o"));
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unable to apply family defaults: {ex.Message}");
+            }
+        }
         public static void CheckMigration(string webRootPath, string webContentPath)
         {
             //check if current working directory differs from content root.

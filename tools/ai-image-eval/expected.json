@@ -1,0 +1,41 @@
+{
+  "01-printed-garage.jpg": {
+    "kind": "receipt",
+    "vendor": "Minh Phát",
+    "date": "2026-11-03",
+    "total": 1188000,
+    "odometer": 45320,
+    "plate": "51K-123.45",
+    "lines": 4
+  },
+  "02-handwritten-motorbike.jpg": {
+    "kind": "receipt",
+    "vendor": "Hùng",
+    "date": "2026-11-05",
+    "total": 235000,
+    "odometer": 0,
+    "plate": "59X2-678.90",
+    "lines": 3
+  },
+  "03-blurry-fuel.jpg": {
+    "kind": "receipt",
+    "vendor": "Xăng dầu số 15",
+    "date": "2026-11-08",
+    "total": 100000,
+    "odometer": 0,
+    "plate": "",
+    "lines": 1
+  },
+  "04-bank-transfer.png": {
+    "kind": "transfer",
+    "total": 1188000,
+    "date": "2026-11-03",
+    "reference": "FT26307912345",
+    "recipient": "NGUYEN VAN PHAT",
+    "content": "Thanh toan sua xe 51K12345",
+    "no_account_numbers": [
+      "0123456789012",
+      "9876543210"
+    ]
+  }
+}

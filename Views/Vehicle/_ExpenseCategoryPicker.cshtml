@@ -1,0 +1,15 @@
+@using CarCareTracker.Helper
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model string
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+}
+<label for="@(Model)ExpenseCategory">@translator.Translate(userLanguage, "Expense Category")</label>
+<select class="form-select" id="@(Model)ExpenseCategory" onchange="addMaintenanceItem(this, '@(Model)Description', '@(Model)Tag')">
+    <!option value="">@translator.Translate(userLanguage, "Select a category")</!option>
+    @foreach (ExpenseCategory category in ExpenseCatalog.Categories)
+    {
+        <!option value="@category.Tag">@translator.Translate(userLanguage, category.Name)</!option>
+    }
+</select>

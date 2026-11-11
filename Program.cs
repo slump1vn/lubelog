@@ -36,6 +36,8 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["LUBELOGGER_LOCALE_OVERRIDE
 StaticHelper.InitMessage(builder.Configuration);
 //Check Migration
 StaticHelper.CheckMigration(builder.Environment.WebRootPath, builder.Environment.ContentRootPath);
+//Install or update bundled translations
+StaticHelper.SeedBundledTranslations(builder.Environment.WebRootPath, builder.Environment.ContentRootPath);
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -112,6 +114,8 @@ builder.Services.AddSingleton<IUserLogic, UserLogic>();
 builder.Services.AddSingleton<IOdometerLogic, OdometerLogic>();
 builder.Services.AddSingleton<IVehicleLogic, VehicleLogic>();
 builder.Services.AddSingleton<INotificationLogic, NotificationLogic>();
+builder.Services.AddSingleton<IMaintenanceLogic, MaintenanceLogic>();
+builder.Services.AddSingleton<IAiLogic, AiLogic>();
 
 //configure automated event logic
 if (StaticHelper.CheckConfigBoolean(builder.Configuration, "LUBELOGGER_AUTO_EVENTS"))
@@ -145,6 +149,12 @@ builder.Services.Configure<FormOptions>(options =>
 });
 
 var app = builder.Build();
+
+//family defaults (equipment extra fields for batteries and tires), applied once.
+if (StaticHelper.CheckConfigBoolean(builder.Configuration, "LUBELOGGER_FAMILY_DEFAULTS"))
+{
+    StaticHelper.SeedFamilyDefaults(builder.Environment.ContentRootPath, app.Services.GetRequiredService<IExtraFieldDataAccess>());
+}
 
 //configure the HTTP request pipeline.
 app.UseExceptionHandler("/Error");

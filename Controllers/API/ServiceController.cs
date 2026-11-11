@@ -138,6 +138,7 @@ namespace CarCareTracker.Controllers
                     Tags = string.IsNullOrWhiteSpace(input.Tags) ? new List<string>() : input.Tags.Split(' ').Distinct().ToList()
                 };
                 _serviceRecordDataAccess.SaveServiceRecordToVehicle(serviceRecord);
+                _maintenanceLogic.PushbackRemindersByTags(vehicleId, serviceRecord.Tags, serviceRecord.Date, serviceRecord.Mileage, new List<int>());
                 if (_config.GetUserConfig(User).EnableAutoOdometerInsert)
                 {
                     var odometerRecord = new OdometerRecord()

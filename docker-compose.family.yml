@@ -1,0 +1,74 @@
+---
+# Bản cài đặt cho gia đình: giao diện tiếng Việt, tiền VNĐ, đơn vị km/lít, dữ liệu LiteDB.
+#
+#   docker compose -f docker-compose.family.yml up -d --build
+#   -> mở http://localhost:8080
+#
+# Các dịch vụ tuỳ chọn (dùng cho các giai đoạn sau, chưa cần ở giai đoạn 0-1):
+#   AI tại nhà (Ollama):       docker compose -f docker-compose.family.yml --profile ai up -d
+#   Cloudflare Tunnel (Zalo):  đặt TUNNEL_TOKEN trong tệp .env rồi thêm --profile tunnel
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      # Định dạng ngày dd/MM/yyyy và tiền ₫
+      - LC_ALL=vi_VN.UTF-8
+      - LANG=vi_VN.UTF-8
+      - LUBELOGGER_LOCALE_OVERRIDE=vi-VN
+      - TZ=Asia/Ho_Chi_Minh
+      # Mặc định cho người dùng mới (đổi được trong Cài đặt)
+      - UserLanguage=vi_VN
+      - UseMPG=false
+      - UseThreeDecimalGasCost=false
+      - EnableAutoOdometerInsert=true
+      # Các thẻ hiển thị trong trang xe: tổng quan, bảo dưỡng, sửa chữa, nhiên liệu, chi phí khác, nhắc lịch, thiết bị (ắc quy, lốp), số km
+      - VisibleTabs__0=8
+      - VisibleTabs__1=0
+      - VisibleTabs__2=1
+      - VisibleTabs__3=2
+      - VisibleTabs__4=3
+      - VisibleTabs__5=5
+      - VisibleTabs__6=13
+      - VisibleTabs__7=10
+      # Thêm sẵn các trường hãng, kích cỡ, ngày lắp, bảo hành cho thẻ Thiết bị (chỉ chạy một lần)
+      - LUBELOGGER_FAMILY_DEFAULTS=true
+      # AI tại nhà: bỏ dấu # ở dòng dưới sau khi chạy Ollama (--profile ai) và tải mô hình:
+      #   docker compose -f docker-compose.family.yml exec ollama ollama pull qwen2.5:7b
+      # Khi chưa bật, trợ lý vẫn đọc được các câu thông dụng bằng bộ quy tắc có sẵn.
+      # - LUBELOGGER_AI_URL=http://ollama:11434
+      - LUBELOGGER_AI_MODEL=qwen2.5:7b
+      # Mô hình đọc ảnh hoá đơn / ảnh chuyển khoản (cần tải riêng: ollama pull qwen2.5vl:7b)
+      - LUBELOGGER_AI_VISION_MODEL=qwen2.5vl:7b
+      # Dùng máy chủ llama.cpp (llama-server) hoặc máy chủ kiểu OpenAI khác thay cho Ollama:
+      #   llama-server phải chạy kèm --mmproj để đọc được ảnh. Nếu dùng llama-swap, đặt LUBELOGGER_AI_MODEL và
+      #   LUBELOGGER_AI_VISION_MODEL đúng tên mô hình trong /v1/models.
+      # - LUBELOGGER_AI_URL=http://192.168.2.135:9292
+      # - LUBELOGGER_AI_API=openai
+      # - LUBELOGGER_AI_KEY=   (chỉ cần nếu máy chủ đặt --api-key)
+    volumes:
+      - data:/App/data
+      - keys:/root/.aspnet/DataProtection-Keys
+    ports:
+      - 8080:8080
+
+  ollama:
+    image: ollama/ollama:latest
+    profiles: ["ai"]
+    restart: unless-stopped
+    volumes:
+      - ollama:/root/.ollama
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: ["tunnel"]
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      - TUNNEL_TOKEN=${TUNNEL_TOKEN:-}
+
+volumes:
+  data:
+  keys:
+  ollama:

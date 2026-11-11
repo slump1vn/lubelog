@@ -50,6 +50,12 @@ function bindTabEvent() {
             case "calendar-tab":
                 getVehicleCalendarEvents();
                 break;
+            case "expense-tab":
+                loadHouseholdExpenses(0);
+                break;
+            case "assistant-tab":
+                loadAssistant();
+                break;
         }
         $(`.lubelogger-tab #${e.target.id}`).addClass('active');
         $(`.lubelogger-mobile-nav #${e.target.id}`).addClass('active');
@@ -66,6 +72,12 @@ function bindTabEvent() {
                     break;
                 case "calendar-tab":
                     $("#calendar-tab-pane").html("");
+                    break;
+                case "expense-tab":
+                    $("#expense-tab-pane").html("");
+                    break;
+                case "assistant-tab":
+                    $("#assistant-tab-pane").html("");
                     break;
             }
             $(`.lubelogger-tab #${e.relatedTarget.id}`).removeClass('active');
@@ -893,4 +905,11 @@ $(function () {
 })
 function goToAdminPanel() {
     window.location.href = '/Admin';
+}
+function loadHouseholdExpenses(year) {
+    $.get(`/Home/Expenses?year=${year}`, function (data) {
+        if (data) {
+            $("#expense-tab-pane").html(data);
+        }
+    });
 }

@@ -110,6 +110,26 @@ namespace CarCareTracker.Controllers
             }
         }
         [HttpPost]
+        public IActionResult ApplyMaintenanceSchedule(int vehicleId)
+        {
+            //security check.
+            if (!_userLogic.UserCanEditVehicle(GetUserID(), vehicleId, HouseholdPermission.Edit))
+            {
+                return Json(OperationResponse.Failed("Access Denied"));
+            }
+            var vehicle = _dataAccess.GetVehicleById(vehicleId);
+            if (vehicle is null || vehicle.Id == default)
+            {
+                return Json(OperationResponse.Failed(StaticHelper.GenericErrorMessage));
+            }
+            var userLanguage = _config.GetUserConfig(User).UserLanguage;
+            var created = _maintenanceLogic.ApplyDefaultSchedule(vehicle, userLanguage);
+            var message = created > 0
+                ? $"{_translator.Translate(userLanguage, "Reminders Added")}: {created}"
+                : _translator.Translate(userLanguage, "All default maintenance reminders already exist");
+            return Json(OperationResponse.Succeed(message));
+        }
+        [HttpPost]
         public IActionResult SaveReminderRecordToVehicleId(ReminderRecordInput reminderRecord)
         {
             //security check.

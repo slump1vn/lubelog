@@ -1,0 +1,125 @@
+@using CarCareTracker.Helper
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model HouseholdExpenseViewModel
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+    var grandTotal = Model.Vehicles.Sum(x => x.Total);
+    var maxMonth = Model.Months.Any() ? Model.Months.Max(x => x.Total) : 0;
+    string Money(decimal value) => value == 0 ? "---" : value.ToString("C");
+    int Percent(decimal value, decimal max) => max == 0 ? 0 : (int)Math.Round(value / max * 100);
+}
+<div class="row mt-2">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div class="d-flex align-items-center flex-wrap gap-2">
+            <span class="lead">@translator.Translate(userLanguage, "Household Expenses")</span>
+            <span class="badge bg-primary">@($"{translator.Translate(userLanguage, "Total")}: {grandTotal.ToString("C")}")</span>
+        </div>
+        <div>
+            <select class="form-select" onchange="loadHouseholdExpenses(this.value)" aria-label="@translator.Translate(userLanguage, "Year")">
+                @foreach (int year in Model.Years)
+                {
+                    <!option value="@year" @(year == Model.Year ? "selected" : "")>@year</!option>
+                }
+            </select>
+        </div>
+    </div>
+</div>
+@if (grandTotal == 0)
+{
+    <div class="row mt-4">
+        <div class="col-12 text-center">
+            <span class="lead">@translator.Translate(userLanguage, "No expenses recorded for this year")</span>
+        </div>
+    </div>
+}
+else
+{
+    <div class="row mt-3">
+        <div class="col-12">
+            <h6>@translator.Translate(userLanguage, "Expenses by Vehicle")</h6>
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>@translator.Translate(userLanguage, "Vehicle")</th>
+                            <th class="text-end">@translator.Translate(userLanguage, "Service")</th>
+                            <th class="text-end">@translator.Translate(userLanguage, "Repairs")</th>
+                            <th class="text-end">@translator.Translate(userLanguage, "Upgrades")</th>
+                            <th class="text-end">@translator.Translate(userLanguage, "Fuel")</th>
+                            <th class="text-end">@translator.Translate(userLanguage, "Other Expenses")</th>
+                            <th class="text-end">@translator.Translate(userLanguage, "Total")</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (HouseholdExpenseRow row in Model.Vehicles)
+                        {
+                            <tr style="cursor:pointer;" onclick="viewVehicle(@row.VehicleId)">
+                                <td>@row.Name <small class="text-body-secondary">@row.Identifier</small></td>
+                                <td class="text-end">@Money(row.Service)</td>
+                                <td class="text-end">@Money(row.Repair)</td>
+                                <td class="text-end">@Money(row.Upgrade)</td>
+                                <td class="text-end">@Money(row.Fuel)</td>
+                                <td class="text-end">@Money(row.Other)</td>
+                                <td class="text-end fw-bold">@Money(row.Total)</td>
+                            </tr>
+                        }
+                    </tbody>
+                    <tfoot>
+                        <tr class="fw-bold">
+                            <td>@translator.Translate(userLanguage, "Total")</td>
+                            <td class="text-end">@Money(Model.Vehicles.Sum(x => x.Service))</td>
+                            <td class="text-end">@Money(Model.Vehicles.Sum(x => x.Repair))</td>
+                            <td class="text-end">@Money(Model.Vehicles.Sum(x => x.Upgrade))</td>
+                            <td class="text-end">@Money(Model.Vehicles.Sum(x => x.Fuel))</td>
+                            <td class="text-end">@Money(Model.Vehicles.Sum(x => x.Other))</td>
+                            <td class="text-end">@Money(grandTotal)</td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-3">
+        <div class="col-12 col-md-7">
+            <h6>@translator.Translate(userLanguage, "Expenses by Month")</h6>
+            <table class="table table-sm align-middle">
+                <tbody>
+                    @foreach (HouseholdExpenseRow month in Model.Months)
+                    {
+                        <tr>
+                            <td style="width:3rem;">@month.Name</td>
+                            <td>
+                                <div class="progress" role="progressbar" aria-valuenow="@Percent(month.Total, maxMonth)" aria-valuemin="0" aria-valuemax="100">
+                                    <div class="progress-bar" style="width:@(Percent(month.Total, maxMonth))%"></div>
+                                </div>
+                            </td>
+                            <td class="text-end" style="width:9rem;">@Money(month.Total)</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        <div class="col-12 col-md-5">
+            <h6>@translator.Translate(userLanguage, "Other Expenses by Category")</h6>
+            @if (Model.OtherByCategory.Any())
+            {
+                <table class="table table-sm">
+                    <tbody>
+                        @foreach (var category in Model.OtherByCategory.OrderByDescending(x => x.Value))
+                        {
+                            <tr>
+                                <td>@translator.Translate(userLanguage, category.Key)</td>
+                                <td class="text-end">@Money(category.Value)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            else
+            {
+                <span class="text-body-secondary">@translator.Translate(userLanguage, "No Data Found")</span>
+            }
+        </div>
+    </div>
+}

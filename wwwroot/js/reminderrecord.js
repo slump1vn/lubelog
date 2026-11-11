@@ -362,3 +362,30 @@ function updateReminderAggregateLabels() {
     var notUrgentLabel = $('[data-aggregate-type="noturgent-count"]');
     notUrgentLabel.text(`${notUrgentLabel.text().split(':')[0]}: ${notUrgentCount}`);
 }
+function applyMaintenanceSchedule() {
+    var vehicleId = GetVehicleId().vehicleId;
+    $.post('/Vehicle/ApplyMaintenanceSchedule', { vehicleId: vehicleId }, function (data) {
+        if (data.success) {
+            successToast(data.message);
+            getVehicleReminders(vehicleId);
+        } else {
+            errorToast(data.message);
+        }
+    });
+}
+function addMaintenanceItem(sender, descriptionElemId, tagElemId) {
+    var tag = $(sender).val();
+    if (!tag) {
+        return;
+    }
+    var itemName = $(sender).find('option:selected').text().trim();
+    $(`#${tagElemId}`).tagsinput('add', tag);
+    var descriptionElem = $(`#${descriptionElemId}`);
+    var existingDescription = descriptionElem.val().trim();
+    if (existingDescription == '') {
+        descriptionElem.val(itemName);
+    } else if (!existingDescription.split(', ').includes(itemName)) {
+        descriptionElem.val(`${existingDescription}, ${itemName}`);
+    }
+    $(sender).val('');
+}

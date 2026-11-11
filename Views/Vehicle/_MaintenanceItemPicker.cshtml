@@ -1,0 +1,17 @@
+@using CarCareTracker.Helper
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model string
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+}
+<label for="@(Model)MaintenanceItem">@translator.Translate(userLanguage, "Maintenance Item")</label>
+<select class="form-select" id="@(Model)MaintenanceItem" onchange="addMaintenanceItem(this, '@(Model)Description', '@(Model)Tag')">
+    <!option value="">@translator.Translate(userLanguage, "Select items performed")</!option>
+    @foreach (MaintenanceItem item in MaintenanceCatalog.Items)
+    {
+        <!option value="@item.Tag">@translator.Translate(userLanguage, item.Name)</!option>
+    }
+</select>
+<small class="text-body-secondary">@translator.Translate(userLanguage, "Matching recurring reminders are rescheduled automatically when the record is saved")</small>
+<br />

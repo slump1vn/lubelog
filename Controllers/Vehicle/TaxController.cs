@@ -57,6 +57,11 @@ namespace CarCareTracker.Controllers
                 }
             }
             var result = _taxRecordDataAccess.SaveTaxRecordToVehicle(taxRecord.ToTaxRecord());
+            if (result && taxRecord.Id == default)
+            {
+                //new record: push back recurring reminders that share a tag with it (i.e. inspection or insurance renewal).
+                _maintenanceLogic.PushbackRemindersByTags(taxRecord.VehicleId, taxRecord.Tags, DateTime.Parse(taxRecord.Date), null, taxRecord.ReminderRecordId);
+            }
             _vehicleLogic.UpdateRecurringTaxes(taxRecord.VehicleId);
             if (result)
             {
