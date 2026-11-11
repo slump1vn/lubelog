@@ -86,6 +86,8 @@ namespace CarCareTracker.Models
         public List<IncomeSource> Incomes { get; set; } = new List<IncomeSource>();
         public List<Fund> Funds { get; set; } = new List<Fund>();
         public List<Debt> Debts { get; set; } = new List<Debt>();
+        /// <summary>The joint account watched through SePay.</summary>
+        public SharedAccount SharedAccount { get; set; } = new SharedAccount();
         public DateTime UpdatedAtUtc { get; set; }
         public int UpdatedByUserId { get; set; }
     }

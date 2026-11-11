@@ -51,6 +51,7 @@
             </div>
         }
     </div>
+    <div id="budgetAccount" class="mt-2"></div>
     <div class="row mt-2 g-2">
         <div class="col-12 col-md-4">
             <div class="card h-100"><div class="card-body">
@@ -86,6 +87,14 @@
             <div class="col-12 col-md-4">
                 <label class="form-label" for="budgetCycleStart">@T("Budget cycle starts on day")</label>
                 <input type="number" inputmode="numeric" min="1" max="31" step="1" class="form-control" id="budgetCycleStart" value="@profile.CycleStartDay">
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="budgetAccountNumber">@T("Shared account number (SePay)")</label>
+                <input type="text" inputmode="numeric" class="form-control" id="budgetAccountNumber" value="@profile.SharedAccount.AccountNumber" maxlength="24" autocomplete="off" placeholder="@T("Optional")">
+            </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label" for="budgetAccountBank">@T("Bank")</label>
+                <input type="text" class="form-control" id="budgetAccountBank" value="@profile.SharedAccount.BankName" maxlength="50" placeholder="@T("Optional")">
             </div>
         </div>
     </div>

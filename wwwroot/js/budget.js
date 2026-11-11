@@ -6,6 +6,7 @@ function loadBudget(template) {
         if (data) {
             $("#budget-tab-pane").html(data);
             initBudgetSettings();
+            loadBudgetAccount();
         }
     });
 }
@@ -164,6 +165,10 @@ function collectBudget() {
         currency: $("#budgetCurrency").val(),
         approvalThreshold: budgetNumber($("#budgetThreshold")),
         cycleStartDay: budgetNumber($("#budgetCycleStart")),
+        sharedAccount: {
+            accountNumber: ($("#budgetAccountNumber").val() || '').replace(/\s/g, ''),
+            bankName: $("#budgetAccountBank").val() || ''
+        },
         funds: $("#budgetFundRows .budget-fund").map(function () {
             var key = $(this).attr('data-key');
             var kind = parseInt($(this).find('.fund-kind').val());
@@ -221,6 +226,39 @@ function saveBudget() {
         },
         error: function () {
             errorToast(genericErrorMessage());
+        }
+    });
+}
+// Joint account card (SePay): balance, money in and out this cycle, latest transactions.
+function loadBudgetAccount() {
+    $.get('/Budget/Account', function (data) {
+        $("#budgetAccount").html(data);
+        $("#budgetAccount .budget-time").each(function () {
+            var time = new Date($(this).attr('datetime'));
+            if (!isNaN(time)) {
+                $(this).text(time.toLocaleString());
+            }
+        });
+    });
+}
+function syncBudgetAccount(button) {
+    $(button).prop('disabled', true);
+    $.ajax({
+        url: '/Budget/SyncAccount',
+        type: 'POST',
+        contentType: 'application/json',
+        data: '{}',
+        success: function (result) {
+            if (result.success) {
+                successToast(result.message);
+            } else {
+                errorToast(result.message);
+            }
+            loadBudgetAccount();
+        },
+        error: function () {
+            errorToast(genericErrorMessage());
+            $(button).prop('disabled', false);
         }
     });
 }

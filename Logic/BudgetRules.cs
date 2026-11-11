@@ -42,6 +42,11 @@ namespace CarCareTracker.Logic
             {
                 issues.Add(new BudgetIssue("Budget cycle start day must be between 1 and 31"));
             }
+            var accountNumber = profile.SharedAccount.AccountNumber;
+            if (accountNumber.Length > 0 && (accountNumber.Length < 4 || accountNumber.Length > 24 || !accountNumber.All(char.IsAsciiLetterOrDigit)))
+            {
+                issues.Add(new BudgetIssue("The shared account number may contain only letters and digits (4 to 24)"));
+            }
             CheckKeys(profile.Funds.Select(x => (x.Key, x.Name)), "Fund", issues);
             CheckKeys(profile.Incomes.Select(x => (x.Key, x.Name)), "Income", issues);
             CheckKeys(profile.Debts.Select(x => (x.Key, x.Name)), "Debt", issues);
@@ -264,6 +269,9 @@ namespace CarCareTracker.Logic
         public static void Normalize(BudgetProfile profile)
         {
             profile.Currency ??= string.Empty;
+            profile.SharedAccount ??= new SharedAccount();
+            profile.SharedAccount.AccountNumber = (profile.SharedAccount.AccountNumber ?? string.Empty).Replace(" ", string.Empty).Trim();
+            profile.SharedAccount.BankName = (profile.SharedAccount.BankName ?? string.Empty).Trim();
             profile.Funds ??= new List<Fund>();
             profile.Incomes ??= new List<IncomeSource>();
             profile.Debts ??= new List<Debt>();

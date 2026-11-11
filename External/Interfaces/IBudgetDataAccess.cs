@@ -7,6 +7,7 @@ namespace CarCareTracker.External.Interfaces
         /// <summary>Returns null when the household has no budget yet.</summary>
         BudgetProfile? GetBudgetProfile(int householdId);
         bool SaveBudgetProfile(BudgetProfile profile);
+        List<BudgetProfile> GetBudgetProfiles();
         bool AddAuditEntry(BudgetAuditEntry entry);
         /// <summary>Newest first.</summary>
         List<BudgetAuditEntry> GetAuditEntries(int householdId, int limit);

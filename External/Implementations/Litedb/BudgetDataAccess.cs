@@ -20,6 +20,12 @@ namespace CarCareTracker.External.Implementations
             var table = db.GetCollection<BudgetProfile>(profileTable);
             return table.FindById(householdId);
         }
+        public List<BudgetProfile> GetBudgetProfiles()
+        {
+            var db = _liteDB.GetLiteDB();
+            var table = db.GetCollection<BudgetProfile>(profileTable);
+            return table.FindAll().ToList();
+        }
         public bool SaveBudgetProfile(BudgetProfile profile)
         {
             var db = _liteDB.GetLiteDB();

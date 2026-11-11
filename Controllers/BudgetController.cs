@@ -18,9 +18,11 @@ namespace CarCareTracker.Controllers
         private readonly IBudgetLogic _budgetLogic;
         private readonly IConfigHelper _config;
         private readonly ITranslationHelper _translator;
-        public BudgetController(IBudgetLogic budgetLogic, IConfigHelper config, ITranslationHelper translator)
+        private readonly ISepayLogic _sepayLogic;
+        public BudgetController(IBudgetLogic budgetLogic, IConfigHelper config, ITranslationHelper translator, ISepayLogic sepayLogic)
         {
             _budgetLogic = budgetLogic;
+            _sepayLogic = sepayLogic;
             _config = config;
             _translator = translator;
         }
@@ -68,6 +70,25 @@ namespace CarCareTracker.Controllers
                 return Json(OperationResponse.Failed(string.Join("\n", result.Issues.Select(Localize))));
             }
             return Json(OperationResponse.Succeed(_translator.Translate(UserLanguage, "Budget saved")));
+        }
+        /// <summary>The joint account card: balance, money in and out this cycle, latest transactions.</summary>
+        [HttpGet]
+        public IActionResult Account()
+        {
+            var householdId = _budgetLogic.GetHouseholdId(GetUserID());
+            return PartialView("_Account", _sepayLogic.GetAccountView(householdId));
+        }
+        /// <summary>Pulls new transactions from SePay now. POST with a JSON body, like Save.</summary>
+        [HttpPost]
+        public async Task<IActionResult> SyncAccount([FromBody] object? _)
+        {
+            var householdId = _budgetLogic.GetHouseholdId(GetUserID());
+            var status = await _sepayLogic.SyncHousehold(householdId, HttpContext.RequestAborted);
+            if (!status.Succeeded)
+            {
+                return Json(OperationResponse.Failed(_translator.Translate(UserLanguage, status.Error)));
+            }
+            return Json(OperationResponse.Succeed(string.Format(_translator.Translate(UserLanguage, "{0} new transactions"), status.Added)));
         }
         private string UserLanguage => _config.GetUserConfig(User).UserLanguage;
         private string Localize(BudgetIssue issue)

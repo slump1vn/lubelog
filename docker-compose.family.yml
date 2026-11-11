@@ -47,6 +47,12 @@ services:
       # - LUBELOGGER_AI_URL=http://192.168.2.135:9292
       # - LUBELOGGER_AI_API=openai
       # - LUBELOGGER_AI_KEY=   (chỉ cần nếu máy chủ đặt --api-key)
+      # Theo dõi tài khoản chung qua SePay (xem docs/SEPAY.md). Đặt khoá trong tệp .env, không ghi thẳng vào đây.
+      # Kéo giao dịch qua API (chạy được trong mạng nhà, mặc định 15 phút một lần):
+      - LUBELOGGER_SEPAY_API_KEY=${SEPAY_API_KEY:-}
+      # - LUBELOGGER_SEPAY_SYNC_MINUTES=15
+      # Nhận giao dịch tức thì qua webhook (cần địa chỉ HTTPS công khai, ví dụ Cloudflare Tunnel --profile tunnel):
+      - LUBELOGGER_SEPAY_WEBHOOK_SECRET=${SEPAY_WEBHOOK_SECRET:-}
     volumes:
       - data:/App/data
       - keys:/root/.aspnet/DataProtection-Keys

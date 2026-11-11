@@ -53,6 +53,31 @@ namespace CarCareTracker.External.Implementations
                 return null;
             }
         }
+        public List<BudgetProfile> GetBudgetProfiles()
+        {
+            var results = new List<BudgetProfile>();
+            try
+            {
+                string cmd = $"SELECT data FROM app.{profileTable}";
+                using (var ctext = pgDataSource.CreateCommand(cmd))
+                {
+                    using (NpgsqlDataReader reader = ctext.ExecuteReader())
+                        while (reader.Read())
+                        {
+                            var profile = JsonSerializer.Deserialize<BudgetProfile>(reader["data"] as string ?? "{}");
+                            if (profile != null)
+                            {
+                                results.Add(profile);
+                            }
+                        }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+            }
+            return results;
+        }
         public bool SaveBudgetProfile(BudgetProfile profile)
         {
             try
