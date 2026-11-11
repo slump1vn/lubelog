@@ -69,6 +69,8 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["POSTGRES_CONNECTION"])){
     builder.Services.AddSingleton<IEquipmentRecordDataAccess, PGEquipmentRecordDataAccess>();
     builder.Services.AddSingleton<IUserHouseholdDataAccess, PGUserHouseholdDataAccess>();
     builder.Services.AddSingleton<IApiKeyRecordDataAccess, PGApiKeyRecordDataAccess>();
+    builder.Services.AddSingleton<IBudgetDataAccess, PGBudgetDataAccess>();
+    builder.Services.AddSingleton<IBankTransactionDataAccess, PGBankTransactionDataAccess>();
     builder.Services.AddSingleton<IDBHealthCheck, PGDBHealthCheck>();
 }
 else
@@ -95,6 +97,8 @@ else
     builder.Services.AddSingleton<IEquipmentRecordDataAccess, EquipmentRecordDataAccess>();
     builder.Services.AddSingleton<IUserHouseholdDataAccess, UserHouseholdDataAccess>();
     builder.Services.AddSingleton<IApiKeyRecordDataAccess, ApiKeyRecordDataAccess>();
+    builder.Services.AddSingleton<IBudgetDataAccess, BudgetDataAccess>();
+    builder.Services.AddSingleton<IBankTransactionDataAccess, BankTransactionDataAccess>();
     builder.Services.AddSingleton<IDBHealthCheck, DBHealthCheck>();
 }
 
@@ -116,6 +120,10 @@ builder.Services.AddSingleton<IVehicleLogic, VehicleLogic>();
 builder.Services.AddSingleton<INotificationLogic, NotificationLogic>();
 builder.Services.AddSingleton<IMaintenanceLogic, MaintenanceLogic>();
 builder.Services.AddSingleton<IAiLogic, AiLogic>();
+builder.Services.AddSingleton<IBudgetLogic, BudgetLogic>();
+builder.Services.AddSingleton<ISepayLogic, SepayLogic>();
+//pulls the joint account from SePay when LUBELOGGER_SEPAY_API_KEY is set; does nothing otherwise.
+builder.Services.AddHostedService<SepaySyncService>();
 
 //configure automated event logic
 if (StaticHelper.CheckConfigBoolean(builder.Configuration, "LUBELOGGER_AUTO_EVENTS"))
