@@ -30,3 +30,14 @@ gemma4 muốn đọc ảnh phải thêm `--mmproj` vào lệnh trong llama-swap;
 
 ## Chưa làm
 - Chưa build .NET (máy chưa có SDK) và chưa thử với ảnh thật của gia đình.
+
+## Ảnh thật (3 ảnh, không đưa lên repo)
+Ảnh chuyển khoản ngân hàng, hoá đơn in nhà hàng, hoá đơn viết tay trên mẫu in sẵn.
+
+Lần đầu tổng tiền đúng cả 3, nhưng có 3 lỗi: lấy ngày hôm nay cho phiếu không ghi ngày, lấy nhầm mã in dưới số tiền làm mã giao dịch, và giữ các dòng in sẵn trên mẫu mà không có tiền.
+
+Đã sửa (lời nhắc chỉ cho biết năm; mã GD lấy theo nhãn "Mã giao dịch"; đọc từng hàng, app bỏ dòng 0đ và các dòng Đơn giá/Số lượng/Tổng...). Lần chạy cuối: cả 3 ảnh đúng ngày, tổng tiền, mã GD và các dòng (14/14 dòng viết tay đúng tên và tiền). Ảnh mẫu vẫn 28/28.
+
+Còn sai nhỏ: dấu tiếng Việt trong tên món viết tay (Hấp → Háp, Măng → Mãng). Không có số tài khoản hay số điện thoại nào lọt vào kết quả.
+
+Lưu ý: ảnh hoá đơn ăn uống vẫn được nhận là "receipt"; trợ lý sẽ đề xuất ghi thành chi phí xe nên người dùng cần xem lại trước khi lưu.
