@@ -153,31 +153,121 @@ namespace CarCareTracker.Logic
                 ["required"] = new JsonArray("intent", "vehicle_id", "date", "odometer", "cost", "liters", "items", "description")
             };
         }
-        private async Task<T?> AskModel<T>(string modelName, string systemPrompt, string userMessage, JsonObject schema, string? imageBase64 = null) where T : class
+        //"ollama" talks to Ollama's /api/chat; "openai" talks to any OpenAI-compatible server
+        //(llama.cpp llama-server, LM Studio, vLLM...) at /v1/chat/completions.
+        private bool UseOpenAiApi
+        {
+            get
+            {
+                var api = (_configuration["LUBELOGGER_AI_API"] ?? string.Empty).Trim().ToLowerInvariant();
+                if (api == "openai" || api == "llamacpp" || api == "llama.cpp")
+                {
+                    return true;
+                }
+                if (api == "ollama")
+                {
+                    return false;
+                }
+                return ModelUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase);
+            }
+        }
+        private string ChatEndpoint
+        {
+            get
+            {
+                if (!UseOpenAiApi)
+                {
+                    return $"{ModelUrl}/api/chat";
+                }
+                return ModelUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase) ? $"{ModelUrl}/chat/completions" : $"{ModelUrl}/v1/chat/completions";
+            }
+        }
+        private static string MimeFromBase64(string imageBase64)
+        {
+            //PNG files start with 0x89 'P' 'N' 'G', which is "iVBOR" in base64.
+            return imageBase64.StartsWith("iVBOR") ? "image/png" : "image/jpeg";
+        }
+        private JsonObject BuildOpenAiRequest(string modelName, string systemPrompt, string userMessage, JsonObject schema, string? imageBase64)
+        {
+            JsonNode userContent;
+            if (!string.IsNullOrWhiteSpace(imageBase64))
+            {
+                userContent = new JsonArray(
+                    new JsonObject { ["type"] = "image_url", ["image_url"] = new JsonObject { ["url"] = $"data:{MimeFromBase64(imageBase64)};base64,{imageBase64}" } },
+                    new JsonObject { ["type"] = "text", ["text"] = userMessage });
+            }
+            else
+            {
+                userContent = JsonValue.Create(userMessage)!;
+            }
+            return new JsonObject
+            {
+                ["model"] = modelName,
+                ["stream"] = false,
+                ["temperature"] = 0,
+                ["response_format"] = new JsonObject
+                {
+                    ["type"] = "json_schema",
+                    ["json_schema"] = new JsonObject { ["name"] = "result", ["strict"] = true, ["schema"] = schema.DeepClone() }
+                },
+                ["messages"] = new JsonArray(new JsonObject { ["role"] = "system", ["content"] = systemPrompt }, new JsonObject { ["role"] = "user", ["content"] = userContent })
+            };
+        }
+        private JsonObject BuildOllamaRequest(string modelName, string systemPrompt, string userMessage, JsonObject schema, string? imageBase64)
         {
             var userEntry = new JsonObject { ["role"] = "user", ["content"] = userMessage };
             if (!string.IsNullOrWhiteSpace(imageBase64))
             {
                 userEntry["images"] = new JsonArray(imageBase64);
             }
-            var request = new JsonObject
+            return new JsonObject
             {
                 ["model"] = modelName,
                 ["stream"] = false,
-                ["format"] = schema,
+                ["format"] = schema.DeepClone(),
                 ["options"] = new JsonObject { ["temperature"] = 0 },
                 ["messages"] = new JsonArray(new JsonObject { ["role"] = "system", ["content"] = systemPrompt }, userEntry)
             };
+        }
+        //models sometimes wrap the JSON in a markdown fence or add a sentence around it.
+        public static string ExtractJson(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return string.Empty;
+            }
+            int start = content.IndexOf('{');
+            int end = content.LastIndexOf('}');
+            return start >= 0 && end > start ? content.Substring(start, end - start + 1) : content.Trim();
+        }
+        private async Task<T?> AskModel<T>(string modelName, string systemPrompt, string userMessage, JsonObject schema, string? imageBase64 = null) where T : class
+        {
+            bool openAi = UseOpenAiApi;
+            var request = openAi ? BuildOpenAiRequest(modelName, systemPrompt, userMessage, schema, imageBase64) : BuildOllamaRequest(modelName, systemPrompt, userMessage, schema, imageBase64);
             await _modelLock.WaitAsync();
             try
             {
                 var client = _httpClientFactory.CreateClient();
                 client.Timeout = TimeSpan.FromSeconds(int.TryParse(_configuration["LUBELOGGER_AI_TIMEOUT"], out int timeout) ? timeout : 180);
-                var response = await client.PostAsync($"{ModelUrl}/api/chat", new StringContent(request.ToJsonString(), Encoding.UTF8, "application/json"));
-                response.EnsureSuccessStatusCode();
-                var body = JsonNode.Parse(await response.Content.ReadAsStringAsync());
-                var content = body?["message"]?["content"]?.GetValue<string>() ?? string.Empty;
-                return JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                var httpRequest = new HttpRequestMessage(HttpMethod.Post, ChatEndpoint)
+                {
+                    Content = new StringContent(request.ToJsonString(), Encoding.UTF8, "application/json")
+                };
+                var apiKey = _configuration["LUBELOGGER_AI_KEY"];
+                if (!string.IsNullOrWhiteSpace(apiKey))
+                {
+                    httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", apiKey);
+                }
+                var response = await client.SendAsync(httpRequest);
+                var responseText = await response.Content.ReadAsStringAsync();
+                if (!response.IsSuccessStatusCode)
+                {
+                    _logger.LogError($"AI model request failed: {(int)response.StatusCode} {responseText}");
+                    return null;
+                }
+                var body = JsonNode.Parse(responseText);
+                var content = (openAi ? body?["choices"]?[0]?["message"]?["content"] : body?["message"]?["content"])?.GetValue<string>() ?? string.Empty;
+                return JsonSerializer.Deserialize<T>(ExtractJson(content), new JsonSerializerOptions { PropertyNameCaseInsensitive = true, NumberHandling = System.Text.Json.Serialization.JsonNumberHandling.AllowReadingFromString });
             }
             catch (Exception ex)
             {
