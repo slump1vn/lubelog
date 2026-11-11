@@ -522,9 +522,9 @@ namespace CarCareTracker.Logic
             prompt.AppendLine("- other: không phải hai loại trên hoặc không đọc được");
             prompt.AppendLine("Quy tắc chung:");
             prompt.AppendLine("- Mọi số tiền là số nguyên tính bằng đồng, không có dấu phân cách: 1.200.000đ = 1200000.");
-            prompt.AppendLine("- date: ngày IN hoặc VIẾT trên chứng từ (vd. \"Ngày: 08/11/2026\" = 2026-11-08), dạng yyyy-MM-dd; chuỗi rỗng nếu không thấy. Không được dùng ngày hôm nay.");
+            prompt.AppendLine("- date: ngày IN hoặc VIẾT trên chứng từ (vd. \"Ngày: 08/11/2026\" = 2026-11-08), dạng yyyy-MM-dd; chuỗi rỗng nếu không thấy. Nếu dòng ngày để trống (vd. \"Ngày ... tháng ... năm\" không điền) thì trả chuỗi rỗng; không được tự đoán ngày.");
             prompt.AppendLine("- Trường nào không có trên ảnh thì để chuỗi rỗng hoặc 0. Không được đoán.");
-            prompt.AppendLine("Với receipt: vendor = tên cửa hàng; total = tổng tiền phải trả (đã gồm VAT); odometer = số km chỉ khi phiếu ghi rõ \"Km\" hoặc \"số km\", là số nguyên; không lấy số trong biển số, số điện thoại hay số hoá đơn, không có thì 0; plate = biển số xe; lines = chỉ những dòng có ghi thành tiền (bỏ dòng in sẵn trên mẫu mà không có tiền) với name (giữ nguyên chữ trên phiếu) và amount (thành tiền của dòng).");
+            prompt.AppendLine("Với receipt: vendor = tên cửa hàng; total = tổng tiền phải trả (đã gồm VAT); odometer = số km chỉ khi phiếu ghi rõ \"Km\" hoặc \"số km\", là số nguyên; không lấy số trong biển số, số điện thoại hay số hoá đơn, không có thì 0; plate = biển số xe; lines = từng dòng hàng hoá/dịch vụ, đọc từng hàng ngang, giữ đúng tiền của hàng đó (dòng không ghi tiền thì amount = 0), với name (giữ nguyên chữ trên phiếu) và amount (thành tiền của dòng).");
             prompt.AppendLine("Với transfer: total = số tiền chuyển; bank = tên ngân hàng/ví của người chuyển; reference = giá trị ghi ngay cạnh nhãn \"Mã giao dịch\" hoặc \"Mã GD\" (không lấy mã khác in dưới số tiền nếu đã có nhãn này); recipient = TÊN người nhận; content = nội dung chuyển khoản. KHÔNG ghi số tài khoản vào bất kỳ trường nào.");
             return prompt.ToString();
         }
