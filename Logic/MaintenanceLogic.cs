@@ -7,7 +7,7 @@ namespace CarCareTracker.Logic
     public interface IMaintenanceLogic
     {
         int ApplyDefaultSchedule(Vehicle vehicle, string userLanguage);
-        int PushbackRemindersByTags(int vehicleId, List<string> tags, DateTime date, int mileage, List<int> excludedReminderIds);
+        int PushbackRemindersByTags(int vehicleId, List<string> tags, DateTime date, int? mileage, List<int> excludedReminderIds);
     }
     public class MaintenanceLogic : IMaintenanceLogic
     {
@@ -90,7 +90,7 @@ namespace CarCareTracker.Logic
         /// Pushes back every recurring reminder of the vehicle that shares a maintenance tag with a newly saved record.
         /// </summary>
         /// <returns>Number of reminders updated.</returns>
-        public int PushbackRemindersByTags(int vehicleId, List<string> tags, DateTime date, int mileage, List<int> excludedReminderIds)
+        public int PushbackRemindersByTags(int vehicleId, List<string> tags, DateTime date, int? mileage, List<int> excludedReminderIds)
         {
             var maintenanceTags = (tags ?? new List<string>()).Where(MaintenanceCatalog.IsMaintenanceTag).ToList();
             if (!maintenanceTags.Any())

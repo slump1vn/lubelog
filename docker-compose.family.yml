@@ -23,6 +23,17 @@ services:
       - UseMPG=false
       - UseThreeDecimalGasCost=false
       - EnableAutoOdometerInsert=true
+      # Các thẻ hiển thị trong trang xe: tổng quan, bảo dưỡng, sửa chữa, nhiên liệu, chi phí khác, nhắc lịch, thiết bị (ắc quy, lốp), số km
+      - VisibleTabs__0=8
+      - VisibleTabs__1=0
+      - VisibleTabs__2=1
+      - VisibleTabs__3=2
+      - VisibleTabs__4=3
+      - VisibleTabs__5=5
+      - VisibleTabs__6=13
+      - VisibleTabs__7=10
+      # Thêm sẵn các trường hãng, kích cỡ, ngày lắp, bảo hành cho thẻ Thiết bị (chỉ chạy một lần)
+      - LUBELOGGER_FAMILY_DEFAULTS=true
     volumes:
       - data:/App/data
       - keys:/root/.aspnet/DataProtection-Keys

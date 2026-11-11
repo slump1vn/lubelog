@@ -149,6 +149,12 @@ builder.Services.Configure<FormOptions>(options =>
 
 var app = builder.Build();
 
+//family defaults (equipment extra fields for batteries and tires), applied once.
+if (StaticHelper.CheckConfigBoolean(builder.Configuration, "LUBELOGGER_FAMILY_DEFAULTS"))
+{
+    StaticHelper.SeedFamilyDefaults(builder.Environment.ContentRootPath, app.Services.GetRequiredService<IExtraFieldDataAccess>());
+}
+
 //configure the HTTP request pipeline.
 app.UseExceptionHandler("/Error");
 app.UseStatusCodePagesWithReExecute("/Error/{0}");

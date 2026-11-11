@@ -28,6 +28,39 @@ namespace CarCareTracker.Models
         public bool SkipDiesel { get; set; }
         public Dictionary<VehicleCategory, MaintenanceInterval> Intervals { get; set; } = new Dictionary<VehicleCategory, MaintenanceInterval>();
     }
+    public class ExpenseCategory
+    {
+        public string Tag { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+    }
+    /// <summary>
+    /// Categories for running costs other than service, repairs, upgrades and fuel.
+    /// These are recorded in the Taxes tab and identified by tag.
+    /// </summary>
+    public static class ExpenseCatalog
+    {
+        public const string OtherTag = "khac";
+        public static readonly List<ExpenseCategory> Categories = new List<ExpenseCategory>
+        {
+            new ExpenseCategory { Tag = "gui-xe", Name = "Parking" },
+            new ExpenseCategory { Tag = "phi-cau-duong", Name = "Road Tolls" },
+            new ExpenseCategory { Tag = "rua-xe", Name = "Car Wash" },
+            new ExpenseCategory { Tag = "phi-duong-bo", Name = "Road Maintenance Fee" },
+            new ExpenseCategory { Tag = "dang-kiem", Name = "Vehicle Inspection Fee" },
+            new ExpenseCategory { Tag = "bao-hiem", Name = "Compulsory Insurance" },
+            new ExpenseCategory { Tag = "bao-hiem-than-vo", Name = "Comprehensive Insurance" },
+            new ExpenseCategory { Tag = "phat-nguoi", Name = "Traffic Fines" },
+            new ExpenseCategory { Tag = OtherTag, Name = "Other Expenses" }
+        };
+        /// <summary>
+        /// Returns the first known category among the tags, or the "other" category.
+        /// </summary>
+        public static ExpenseCategory GetCategory(List<string> tags)
+        {
+            return Categories.FirstOrDefault(x => tags != null && tags.Any(y => string.Equals(x.Tag, y, StringComparison.OrdinalIgnoreCase)))
+                ?? Categories.Last();
+        }
+    }
     /// <summary>
     /// Default maintenance schedules for cars, motorbikes and scooters.
     /// Intervals are conservative defaults; users adjust them by editing the generated reminders.

@@ -122,6 +122,55 @@ namespace CarCareTracker.Controllers
             }).ToList();
             return PartialView("_GarageDisplay", vehicleViewModels);
         }
+        public IActionResult Expenses(int year = 0)
+        {
+            var vehiclesStored = _dataAccess.GetVehicles();
+            if (!User.IsInRole(nameof(UserData.IsRootUser)))
+            {
+                vehiclesStored = _userLogic.FilterUserVehicles(vehiclesStored, GetUserID());
+            }
+            var viewModel = new HouseholdExpenseViewModel();
+            var allRecords = vehiclesStored.Select(x => new { Vehicle = x, Records = _vehicleLogic.GetVehicleRecords(x.Id) }).ToList();
+            viewModel.Years = allRecords.SelectMany(x => x.Records.ServiceRecords.Select(y => y.Date.Year)
+                .Union(x.Records.CollisionRecords.Select(y => y.Date.Year))
+                .Union(x.Records.UpgradeRecords.Select(y => y.Date.Year))
+                .Union(x.Records.GasRecords.Select(y => y.Date.Year))
+                .Union(x.Records.TaxRecords.Select(y => y.Date.Year)))
+                .Append(DateTime.Now.Year).Distinct().OrderByDescending(x => x).ToList();
+            viewModel.Year = year == 0 ? DateTime.Now.Year : year;
+            for (int month = 1; month <= 12; month++)
+            {
+                viewModel.Months.Add(new HouseholdExpenseRow { Name = month.ToString() });
+            }
+            foreach (var entry in allRecords)
+            {
+                var row = new HouseholdExpenseRow { VehicleId = entry.Vehicle.Id, Name = $"{entry.Vehicle.Make} {entry.Vehicle.Model}", Identifier = entry.Vehicle.LicensePlate };
+                foreach (var record in entry.Records.ServiceRecords.Where(x => x.Date.Year == viewModel.Year))
+                {
+                    row.Service += record.Cost; viewModel.Months[record.Date.Month - 1].Service += record.Cost;
+                }
+                foreach (var record in entry.Records.CollisionRecords.Where(x => x.Date.Year == viewModel.Year))
+                {
+                    row.Repair += record.Cost; viewModel.Months[record.Date.Month - 1].Repair += record.Cost;
+                }
+                foreach (var record in entry.Records.UpgradeRecords.Where(x => x.Date.Year == viewModel.Year))
+                {
+                    row.Upgrade += record.Cost; viewModel.Months[record.Date.Month - 1].Upgrade += record.Cost;
+                }
+                foreach (var record in entry.Records.GasRecords.Where(x => x.Date.Year == viewModel.Year))
+                {
+                    row.Fuel += record.Cost; viewModel.Months[record.Date.Month - 1].Fuel += record.Cost;
+                }
+                foreach (var record in entry.Records.TaxRecords.Where(x => x.Date.Year == viewModel.Year))
+                {
+                    row.Other += record.Cost; viewModel.Months[record.Date.Month - 1].Other += record.Cost;
+                    var category = ExpenseCatalog.GetCategory(record.Tags).Name;
+                    viewModel.OtherByCategory[category] = viewModel.OtherByCategory.GetValueOrDefault(category) + record.Cost;
+                }
+                viewModel.Vehicles.Add(row);
+            }
+            return PartialView("_Expenses", viewModel);
+        }
         public IActionResult Calendar()
         {
             var vehiclesStored = _dataAccess.GetVehicles();
