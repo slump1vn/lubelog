@@ -524,7 +524,7 @@ namespace CarCareTracker.Logic
             prompt.AppendLine("- Mọi số tiền là số nguyên tính bằng đồng, không có dấu phân cách: 1.200.000đ = 1200000.");
             prompt.AppendLine("- date: ngày IN hoặc VIẾT trên chứng từ (vd. \"Ngày: 08/11/2026\" = 2026-11-08), dạng yyyy-MM-dd; chuỗi rỗng nếu không thấy. Nếu dòng ngày để trống (vd. \"Ngày ... tháng ... năm\" không điền) thì trả chuỗi rỗng; không được tự đoán ngày.");
             prompt.AppendLine("- Trường nào không có trên ảnh thì để chuỗi rỗng hoặc 0. Không được đoán.");
-            prompt.AppendLine("Với receipt: vendor = tên cửa hàng; total = tổng tiền phải trả (đã gồm VAT); odometer = số km chỉ khi phiếu ghi rõ \"Km\" hoặc \"số km\", là số nguyên; không lấy số trong biển số, số điện thoại hay số hoá đơn, không có thì 0; plate = biển số xe; lines = từng dòng hàng hoá/dịch vụ, đọc từng hàng ngang, giữ đúng tiền của hàng đó (dòng không ghi tiền thì amount = 0), với name (giữ nguyên chữ trên phiếu) và amount (thành tiền của dòng).");
+            prompt.AppendLine("Với receipt: vendor = tên cửa hàng; total = tổng tiền phải trả (đã gồm VAT); odometer = số km chỉ khi phiếu ghi rõ \"Km\" hoặc \"số km\", là số nguyên; không lấy số trong biển số, số điện thoại hay số hoá đơn, không có thì 0; plate = biển số xe; lines = từng món hàng/dịch vụ (không tính các dòng Đơn giá, Số lượng, Thành tiền, Cộng, Tổng, VAT, Thuế, Giảm giá), đọc từng hàng ngang, giữ đúng tiền của hàng đó (dòng không ghi tiền thì amount = 0), với name (giữ nguyên chữ trên phiếu) và amount (thành tiền của dòng).");
             prompt.AppendLine("Với transfer: total = số tiền chuyển; bank = tên ngân hàng/ví của người chuyển; reference = giá trị ghi ngay cạnh nhãn \"Mã giao dịch\" hoặc \"Mã GD\" (không lấy mã khác in dưới số tiền nếu đã có nhãn này); recipient = TÊN người nhận; content = nội dung chuyển khoản. KHÔNG ghi số tài khoản vào bất kỳ trường nào.");
             return prompt.ToString();
         }
@@ -581,6 +581,13 @@ namespace CarCareTracker.Logic
             var plateDigits = new string((plate ?? string.Empty).Where(char.IsDigit).ToArray());
             var odometerDigits = ((long)Math.Floor(odometer)).ToString(CultureInfo.InvariantCulture);
             return plateDigits.Length >= 3 && odometerDigits.Length >= 3 && plateDigits.Contains(odometerDigits);
+        }
+        //unit price, quantity and total rows are not items, even when the model lists them.
+        private static bool IsSummaryLine(string name)
+        {
+            var normalized = name.Trim().ToLowerInvariant();
+            string[] labels = { "đơn giá", "số lượng", "thành tiền", "cộng", "tổng", "vat", "thuế", "giảm giá", "chiết khấu", "tiền hàng" };
+            return labels.Any(label => normalized.StartsWith(label));
         }
         private static bool IsValidTempLocation(string location)
         {
@@ -641,7 +648,7 @@ namespace CarCareTracker.Logic
                 response.Warnings.Add(_translator.Translate(language, "No date found, using today"));
             }
             var files = new List<UploadedFiles> { new UploadedFiles { Name = string.IsNullOrWhiteSpace(fileName) ? Path.GetFileName(tempLocation) : Path.GetFileName(fileName), Location = tempLocation, IsPending = true } };
-            var lines = (image.lines ?? new List<ImageLine>()).Where(x => !string.IsNullOrWhiteSpace(x.name) && x.amount > 0).ToList();
+            var lines = (image.lines ?? new List<ImageLine>()).Where(x => !string.IsNullOrWhiteSpace(x.name) && x.amount > 0 && !IsSummaryLine(x.name)).ToList();
             decimal total = image.total > 0 ? Math.Round(image.total) : 0;
             if (image.kind == "transfer")
             {
