@@ -59,6 +59,11 @@ namespace CarCareTracker.Controllers
             {
                 _eventLogic.PublishEvent(GetUserID(), WebHookPayload.FromGenericRecord(convertedRecord, serviceRecord.Id == default ? "servicerecord.add" : "servicerecord.update", User.Identity?.Name ?? string.Empty));
             }
+            if (result && serviceRecord.Id == default)
+            {
+                //new record: push back recurring reminders that share a maintenance tag with it.
+                _maintenanceLogic.PushbackRemindersByTags(serviceRecord.VehicleId, convertedRecord.Tags, convertedRecord.Date, convertedRecord.Mileage, serviceRecord.ReminderRecordId);
+            }
             if (convertedRecord.Id != default && serviceRecord.Id == default && _config.GetUserConfig(User).EnableAutoOdometerInsert)
             {
                 _odometerLogic.AutoInsertOdometerRecord(new OdometerRecord

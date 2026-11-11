@@ -17,6 +17,7 @@ namespace CarCareTracker.Models
         public string SoldDate { get; set; } = string.Empty;
         public decimal PurchasePrice { get; set; }
         public decimal SoldPrice { get; set; }
+        public VehicleCategory VehicleCategory { get; set; } = VehicleCategory.Car;
         public bool IsElectric { get; set; } = false;
         public bool IsDiesel { get; set; } = false;
         public bool UseHours { get; set; } = false;

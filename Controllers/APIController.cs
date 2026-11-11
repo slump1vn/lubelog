@@ -34,6 +34,7 @@ namespace CarCareTracker.Controllers
         private readonly IGasHelper _gasHelper;
         private readonly IUserLogic _userLogic;
         private readonly IVehicleLogic _vehicleLogic;
+        private readonly IMaintenanceLogic _maintenanceLogic;
         private readonly IOdometerLogic _odometerLogic;
         private readonly IFileHelper _fileHelper;
         private readonly IMailHelper _mailHelper;
@@ -65,6 +66,7 @@ namespace CarCareTracker.Controllers
             IConfigHelper config,
             IUserLogic userLogic,
             IVehicleLogic vehicleLogic,
+            IMaintenanceLogic maintenanceLogic,
             IOdometerLogic odometerLogic,
             IEventLogic eventLogic,
             IWebHostEnvironment webEnv,
@@ -93,6 +95,7 @@ namespace CarCareTracker.Controllers
             _userLogic = userLogic;
             _odometerLogic = odometerLogic;
             _vehicleLogic = vehicleLogic;
+            _maintenanceLogic = maintenanceLogic;
             _eventLogic = eventLogic;
             _fileHelper = fileHelper;
             _config = config;

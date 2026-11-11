@@ -210,6 +210,7 @@ function saveVehicle(isEdit) {
         make: vehicleMake,
         model: vehicleModel,
         licensePlate: vehicleLicensePlate,
+        vehicleCategory: $("#inputVehicleCategory").val(),
         isElectric: vehicleIsElectric,
         isDiesel: vehicleIsDiesel,
         tags: vehicleTags,

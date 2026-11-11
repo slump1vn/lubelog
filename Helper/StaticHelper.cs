@@ -375,6 +375,47 @@ namespace CarCareTracker.Helper
                 Console.WriteLine("Created config directory");
             }
         }
+        /// <summary>
+        /// Copies translations shipped in wwwroot/defaults/translations into data/translations.
+        /// Existing files are kept; only keys they do not have yet are added, so user edits survive upgrades.
+        /// </summary>
+        public static void SeedBundledTranslations(string webRootPath, string webContentPath)
+        {
+            try
+            {
+                var bundledPath = Path.Combine(webRootPath, "defaults", "translations");
+                if (!Directory.Exists(bundledPath))
+                {
+                    return;
+                }
+                var targetPath = Path.Combine(webContentPath, "data", "translations");
+                Directory.CreateDirectory(targetPath);
+                foreach (var bundledFile in Directory.GetFiles(bundledPath, "*.json"))
+                {
+                    var targetFile = Path.Combine(targetPath, Path.GetFileName(bundledFile));
+                    if (!File.Exists(targetFile))
+                    {
+                        File.Copy(bundledFile, targetFile);
+                        continue;
+                    }
+                    var bundled = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(bundledFile)) ?? new Dictionary<string, string>();
+                    var existing = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(targetFile)) ?? new Dictionary<string, string>();
+                    var missing = bundled.Where(x => !existing.ContainsKey(x.Key)).ToList();
+                    if (missing.Any())
+                    {
+                        foreach (var entry in missing)
+                        {
+                            existing[entry.Key] = entry.Value;
+                        }
+                        File.WriteAllText(targetFile, System.Text.Json.JsonSerializer.Serialize(existing));
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Unable to install bundled translations: {ex.Message}");
+            }
+        }
         public static void CheckMigration(string webRootPath, string webContentPath)
         {
             //check if current working directory differs from content root.

@@ -47,6 +47,12 @@
                     </select>
                 </div>
                 <div class="col-12 col-md-6">
+                    <label for="inputVehicleCategory">@translator.Translate(userLanguage, "Vehicle Type")</label>
+                    <select class="form-select" id="inputVehicleCategory">
+                        <!option value="Car" @(Model.VehicleCategory == VehicleCategory.Car ? "selected" : "")>@translator.Translate(userLanguage, "Car")</!option>
+                        <!option value="Motorbike" @(Model.VehicleCategory == VehicleCategory.Motorbike ? "selected" : "")>@translator.Translate(userLanguage, "Motorbike (Manual/Clutch)")</!option>
+                        <!option value="Scooter" @(Model.VehicleCategory == VehicleCategory.Scooter ? "selected" : "")>@translator.Translate(userLanguage, "Scooter (Automatic)")</!option>
+                    </select>
                     <label for="inputFuelType">@translator.Translate(userLanguage, "Fuel Type")</label>
                     <select class="form-select" id="inputFuelType")>
                         <!option value="Gasoline" @(!Model.IsDiesel && !Model.IsElectric ? "selected" : "")>@translator.Translate(userLanguage, "Gasoline")</!option>
