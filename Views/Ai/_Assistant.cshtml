@@ -29,9 +29,15 @@
                     <li>Bao giờ phải thay ắc quy?</li>
                     <li>Tháng này tiêu bao nhiêu?</li>
                 </ul>
+                @if (modelConfigured)
+                {
+                    <div class="mt-1"><i class="bi bi-camera me-1"></i>@translator.Translate(userLanguage, "Or send a photo of a receipt or a bank transfer screenshot")</div>
+                }
             </div>
         </div>
         <div class="input-group">
+            <input type="file" id="assistantImageInput" accept="image/png,image/jpeg" class="d-none" onchange="sendAssistantImage(this)">
+            <button class="btn btn-outline-secondary" type="button" id="assistantImageButton" onclick="$('#assistantImageInput').click()" title="@translator.Translate(userLanguage, "Send a photo of a receipt or bank transfer")" aria-label="@translator.Translate(userLanguage, "Send a photo of a receipt or bank transfer")" @(modelConfigured ? "" : "disabled")><i class="bi bi-camera"></i></button>
             <input type="text" id="assistantInput" class="form-control" autocomplete="off" placeholder="@translator.Translate(userLanguage, "Type a message")" aria-label="@translator.Translate(userLanguage, "Type a message")" onkeydown="if (event.key === 'Enter') { event.preventDefault(); sendAssistantMessage(); }">
             <button class="btn btn-primary" type="button" id="assistantSend" onclick="sendAssistantMessage()"><i class="bi bi-send me-2"></i>@translator.Translate(userLanguage, "Send")</button>
         </div>
@@ -92,6 +98,10 @@
                     </div>
                 </div>
             </div>
+            <div class="form-check mt-2 draft-field-attach" style="display:none;">
+                <input class="form-check-input draft-attach" type="checkbox">
+                <label class="form-check-label small">@translator.Translate(userLanguage, "Keep the photo with the record")</label>
+            </div>
             <div class="d-flex justify-content-end gap-2 mt-2 draft-actions">
                 <button type="button" class="btn btn-sm btn-secondary" onclick="cancelAssistantDraft(this)">@translator.Translate(userLanguage, "Cancel")</button>
                 <button type="button" class="btn btn-sm btn-primary" onclick="saveAssistantDraft(this)">@translator.Translate(userLanguage, "Save")</button>
@@ -101,3 +111,15 @@
         </div>
     </div>
 </template>
+<template id="assistantMatchTemplate">
+    <div class="card mb-2 assistant-matches">
+        <div class="card-body">
+            <div class="small mb-2 match-summary"></div>
+            <div class="fw-bold small mb-1">@translator.Translate(userLanguage, "This transfer may be the payment for:")</div>
+            <div class="list-group mb-2 match-list"></div>
+            <div class="small text-body-secondary match-hint">@translator.Translate(userLanguage, "Or save it as a new expense below")</div>
+            <div class="match-status small text-success" style="display:none;"><i class="bi bi-check-circle me-1"></i>@translator.Translate(userLanguage, "Marked as paid")</div>
+        </div>
+    </div>
+</template>
+<span id="assistantMarkPaidLabel" class="d-none">@translator.Translate(userLanguage, "Mark as paid")</span>

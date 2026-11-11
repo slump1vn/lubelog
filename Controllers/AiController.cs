@@ -48,6 +48,26 @@ namespace CarCareTracker.Controllers
             return Json(result);
         }
         [HttpPost]
+        public async Task<IActionResult> Image(string location, string name)
+        {
+            var result = await _aiLogic.ProcessImage(location, name, GetUserVehicles(), _config.GetUserConfig(User));
+            return Json(result);
+        }
+        [HttpPost]
+        public IActionResult AttachPayment([FromBody] AiAttachPaymentRequest request)
+        {
+            if (request is null || request.RecordId == default)
+            {
+                return Json(OperationResponse.Failed(StaticHelper.GenericErrorMessage));
+            }
+            var vehicleId = _aiLogic.GetRecordVehicleId(request.RecordType, request.RecordId);
+            if (vehicleId == default || !_userLogic.UserCanEditVehicle(GetUserID(), vehicleId, HouseholdPermission.Edit))
+            {
+                return Json(OperationResponse.Failed("Access Denied"));
+            }
+            return Json(_aiLogic.AttachPayment(request, _config.GetUserConfig(User)));
+        }
+        [HttpPost]
         public IActionResult Confirm([FromBody] AiDraft draft)
         {
             if (draft is null || draft.VehicleId == default)

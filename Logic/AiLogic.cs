@@ -12,6 +12,9 @@ namespace CarCareTracker.Logic
     {
         bool ModelConfigured { get; }
         Task<AiChatResponse> ProcessMessage(string message, List<Vehicle> vehicles, UserConfig userConfig);
+        Task<AiChatResponse> ProcessImage(string tempLocation, string fileName, List<Vehicle> vehicles, UserConfig userConfig);
+        int GetRecordVehicleId(ImportMode recordType, int recordId);
+        OperationResponse AttachPayment(AiAttachPaymentRequest request, UserConfig userConfig);
         OperationResponse SaveDraft(AiDraft draft, Vehicle vehicle, UserConfig userConfig, int userId, string userName);
     }
     /// <summary>
@@ -33,7 +36,12 @@ namespace CarCareTracker.Logic
         private readonly IGasRecordDataAccess _gasRecordDataAccess;
         private readonly ITaxRecordDataAccess _taxRecordDataAccess;
         private readonly IReminderRecordDataAccess _reminderRecordDataAccess;
+        private readonly ICollisionRecordDataAccess _collisionRecordDataAccess;
+        private readonly IUpgradeRecordDataAccess _upgradeRecordDataAccess;
+        private readonly IFileHelper _fileHelper;
         private readonly ILogger<AiLogic> _logger;
+        public const string PaidTag = "da-thanh-toan";
+        private const string ReferenceLabel = "Mã GD";
         //a home server has one GPU at best: run one model request at a time.
         private static readonly SemaphoreSlim _modelLock = new SemaphoreSlim(1, 1);
         public AiLogic(IHttpClientFactory httpClientFactory,
@@ -48,6 +56,9 @@ namespace CarCareTracker.Logic
             IGasRecordDataAccess gasRecordDataAccess,
             ITaxRecordDataAccess taxRecordDataAccess,
             IReminderRecordDataAccess reminderRecordDataAccess,
+            ICollisionRecordDataAccess collisionRecordDataAccess,
+            IUpgradeRecordDataAccess upgradeRecordDataAccess,
+            IFileHelper fileHelper,
             ILogger<AiLogic> logger)
         {
             _httpClientFactory = httpClientFactory;
@@ -62,10 +73,14 @@ namespace CarCareTracker.Logic
             _gasRecordDataAccess = gasRecordDataAccess;
             _taxRecordDataAccess = taxRecordDataAccess;
             _reminderRecordDataAccess = reminderRecordDataAccess;
+            _collisionRecordDataAccess = collisionRecordDataAccess;
+            _upgradeRecordDataAccess = upgradeRecordDataAccess;
+            _fileHelper = fileHelper;
             _logger = logger;
         }
         private string ModelUrl => (_configuration["LUBELOGGER_AI_URL"] ?? string.Empty).TrimEnd('/');
         private string ModelName => _configuration["LUBELOGGER_AI_MODEL"] ?? "qwen2.5:7b";
+        private string VisionModelName => _configuration["LUBELOGGER_AI_VISION_MODEL"] ?? "qwen2.5vl:7b";
         public bool ModelConfigured => !string.IsNullOrWhiteSpace(ModelUrl);
 
         private class ModelResult
@@ -138,17 +153,20 @@ namespace CarCareTracker.Logic
                 ["required"] = new JsonArray("intent", "vehicle_id", "date", "odometer", "cost", "liters", "items", "description")
             };
         }
-        private async Task<ModelResult?> AskModel(string message, List<Vehicle> vehicles, DateTime today)
+        private async Task<T?> AskModel<T>(string modelName, string systemPrompt, string userMessage, JsonObject schema, string? imageBase64 = null) where T : class
         {
+            var userEntry = new JsonObject { ["role"] = "user", ["content"] = userMessage };
+            if (!string.IsNullOrWhiteSpace(imageBase64))
+            {
+                userEntry["images"] = new JsonArray(imageBase64);
+            }
             var request = new JsonObject
             {
-                ["model"] = ModelName,
+                ["model"] = modelName,
                 ["stream"] = false,
-                ["format"] = BuildSchema(),
+                ["format"] = schema,
                 ["options"] = new JsonObject { ["temperature"] = 0 },
-                ["messages"] = new JsonArray(
-                    new JsonObject { ["role"] = "system", ["content"] = BuildSystemPrompt(vehicles, today) },
-                    new JsonObject { ["role"] = "user", ["content"] = message })
+                ["messages"] = new JsonArray(new JsonObject { ["role"] = "system", ["content"] = systemPrompt }, userEntry)
             };
             await _modelLock.WaitAsync();
             try
@@ -159,17 +177,21 @@ namespace CarCareTracker.Logic
                 response.EnsureSuccessStatusCode();
                 var body = JsonNode.Parse(await response.Content.ReadAsStringAsync());
                 var content = body?["message"]?["content"]?.GetValue<string>() ?? string.Empty;
-                return JsonSerializer.Deserialize<ModelResult>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                return JsonSerializer.Deserialize<T>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             }
             catch (Exception ex)
             {
-                _logger.LogError($"AI model request failed, falling back to rules: {ex.Message}");
+                _logger.LogError($"AI model request failed: {ex.Message}");
                 return null;
             }
             finally
             {
                 _modelLock.Release();
             }
+        }
+        private Task<ModelResult?> AskModel(string message, List<Vehicle> vehicles, DateTime today)
+        {
+            return AskModel<ModelResult>(ModelName, BuildSystemPrompt(vehicles, today), message, BuildSchema());
         }
         private static AiIntent ToIntent(string intent)
         {
@@ -379,6 +401,393 @@ namespace CarCareTracker.Logic
             var header = $"{from.ToShortDateString()} - {to.AddDays(-1).ToShortDateString()}: {_translator.Translate(language, "Total")} {total.ToString("C")}";
             return lines.Count > 1 ? $"{header}\n{string.Join("\n", lines)}" : header;
         }
+        private class ImageLine
+        {
+            public string name { get; set; } = string.Empty;
+            public decimal amount { get; set; }
+        }
+        private class ImageResult
+        {
+            public string kind { get; set; } = "other";
+            public string vendor { get; set; } = string.Empty;
+            public string date { get; set; } = string.Empty;
+            public decimal total { get; set; }
+            public decimal odometer { get; set; }
+            public string plate { get; set; } = string.Empty;
+            public List<ImageLine> lines { get; set; } = new List<ImageLine>();
+            public string bank { get; set; } = string.Empty;
+            public string reference { get; set; } = string.Empty;
+            public string recipient { get; set; } = string.Empty;
+            public string content { get; set; } = string.Empty;
+        }
+        private static string BuildImagePrompt(DateTime today)
+        {
+            var prompt = new StringBuilder();
+            prompt.AppendLine("Bạn đọc ảnh chụp liên quan đến chi phí xe của một gia đình Việt Nam và trả về JSON đúng theo schema. Không thêm chữ nào ngoài JSON.");
+            prompt.AppendLine($"Hôm nay là {today:yyyy-MM-dd}.");
+            prompt.AppendLine("kind:");
+            prompt.AppendLine("- receipt: hoá đơn, phiếu sửa chữa/bảo dưỡng, biên lai của garage, cửa hàng phụ tùng, cây xăng, bãi gửi xe...");
+            prompt.AppendLine("- transfer: ảnh chụp màn hình giao dịch chuyển khoản thành công của ngân hàng hoặc ví điện tử");
+            prompt.AppendLine("- other: không phải hai loại trên hoặc không đọc được");
+            prompt.AppendLine("Quy tắc chung:");
+            prompt.AppendLine("- Mọi số tiền là số nguyên tính bằng đồng, không có dấu phân cách: 1.200.000đ = 1200000.");
+            prompt.AppendLine("- date: ngày trên chứng từ, dạng yyyy-MM-dd; chuỗi rỗng nếu không thấy.");
+            prompt.AppendLine("- Trường nào không có trên ảnh thì để chuỗi rỗng hoặc 0. Không được đoán.");
+            prompt.AppendLine("Với receipt: vendor = tên cửa hàng; total = tổng tiền phải trả (đã gồm VAT); odometer = số km ghi trên phiếu; plate = biển số xe; lines = từng dòng hàng hoá/dịch vụ với name (giữ nguyên chữ trên phiếu) và amount (thành tiền của dòng).");
+            prompt.AppendLine("Với transfer: total = số tiền chuyển; bank = tên ngân hàng/ví của người chuyển; reference = mã giao dịch; recipient = TÊN người nhận; content = nội dung chuyển khoản. KHÔNG ghi số tài khoản vào bất kỳ trường nào.");
+            return prompt.ToString();
+        }
+        private static JsonObject BuildImageSchema()
+        {
+            JsonObject Text() => new JsonObject { ["type"] = "string" };
+            JsonObject Num() => new JsonObject { ["type"] = "number" };
+            return new JsonObject
+            {
+                ["type"] = "object",
+                ["properties"] = new JsonObject
+                {
+                    ["kind"] = new JsonObject { ["type"] = "string", ["enum"] = new JsonArray("receipt", "transfer", "other") },
+                    ["vendor"] = Text(), ["date"] = Text(), ["total"] = Num(), ["odometer"] = Num(), ["plate"] = Text(),
+                    ["lines"] = new JsonObject
+                    {
+                        ["type"] = "array",
+                        ["items"] = new JsonObject { ["type"] = "object", ["properties"] = new JsonObject { ["name"] = Text(), ["amount"] = Num() }, ["required"] = new JsonArray("name", "amount") }
+                    },
+                    ["bank"] = Text(), ["reference"] = Text(), ["recipient"] = Text(), ["content"] = Text()
+                },
+                ["required"] = new JsonArray("kind", "vendor", "date", "total", "odometer", "plate", "lines", "bank", "reference", "recipient", "content")
+            };
+        }
+        private static string Clean(string? value, int maxLength = 200)
+        {
+            var cleaned = System.Text.RegularExpressions.Regex.Replace(value ?? string.Empty, @"\s+", " ").Trim();
+            return cleaned.Length > maxLength ? cleaned.Substring(0, maxLength) : cleaned;
+        }
+        /// <summary>
+        /// Long digit runs in free text of a transfer are most likely account or card numbers: keep the last four digits only.
+        /// </summary>
+        private static string MaskAccountNumbers(string value)
+        {
+            return System.Text.RegularExpressions.Regex.Replace(value, @"\d{8,}", m => new string('*', 4) + m.Value.Substring(m.Value.Length - 4));
+        }
+        private static bool HasReference(string notes, string reference)
+        {
+            return !string.IsNullOrWhiteSpace(reference) && (notes ?? string.Empty).Contains($"{ReferenceLabel}: {reference}", StringComparison.OrdinalIgnoreCase);
+        }
+        private string PaymentNote(AiPayment payment, string language)
+        {
+            var parts = new List<string> { $"{_translator.Translate(language, "Paid by transfer")} {payment.Amount.ToString("C")}" };
+            if (!string.IsNullOrWhiteSpace(payment.Date)) { parts.Add(payment.Date); }
+            if (!string.IsNullOrWhiteSpace(payment.Bank)) { parts.Add(payment.Bank); }
+            if (!string.IsNullOrWhiteSpace(payment.Reference)) { parts.Add($"{ReferenceLabel}: {payment.Reference}"); }
+            if (!string.IsNullOrWhiteSpace(payment.Recipient)) { parts.Add($"{_translator.Translate(language, "Recipient")}: {payment.Recipient}"); }
+            if (!string.IsNullOrWhiteSpace(payment.Content)) { parts.Add($"{_translator.Translate(language, "Transfer content")}: {payment.Content}"); }
+            return string.Join(" · ", parts);
+        }
+        private static bool IsValidTempLocation(string location)
+        {
+            return System.Text.RegularExpressions.Regex.IsMatch(location ?? string.Empty, @"^/temp/[A-Za-z0-9-]+\.(png|jpg|jpeg)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        }
+        public async Task<AiChatResponse> ProcessImage(string tempLocation, string fileName, List<Vehicle> vehicles, UserConfig userConfig)
+        {
+            var response = await ReadImage(tempLocation, fileName, vehicles, userConfig);
+            if (!response.IsDraft && IsValidTempLocation(tempLocation))
+            {
+                //nothing to confirm, so the image is not needed any more.
+                _fileHelper.DeleteFile(tempLocation);
+            }
+            return response;
+        }
+        private async Task<AiChatResponse> ReadImage(string tempLocation, string fileName, List<Vehicle> vehicles, UserConfig userConfig)
+        {
+            var language = userConfig.UserLanguage;
+            var response = new AiChatResponse();
+            if (!ModelConfigured)
+            {
+                response.Reply = _translator.Translate(language, "Reading images needs the home AI, which is not turned on");
+                return response;
+            }
+            if (!vehicles.Any())
+            {
+                response.Reply = _translator.Translate(language, "Add a vehicle first");
+                return response;
+            }
+            var fullPath = IsValidTempLocation(tempLocation) ? _fileHelper.GetFullFilePath(tempLocation) : string.Empty;
+            if (string.IsNullOrWhiteSpace(fullPath) || !File.Exists(fullPath))
+            {
+                response.Reply = _translator.Translate(language, "The image could not be read. Please use a PNG or JPG file");
+                return response;
+            }
+            var today = DateTime.Now.Date;
+            var imageBase64 = Convert.ToBase64String(await File.ReadAllBytesAsync(fullPath));
+            var image = await AskModel<ImageResult>(VisionModelName, BuildImagePrompt(today), "Đọc ảnh này.", BuildImageSchema(), imageBase64);
+            if (image == null)
+            {
+                response.Reply = _translator.Translate(language, "The home AI did not answer. Please try again later");
+                return response;
+            }
+            response.Source = "ai";
+            if (image.kind != "receipt" && image.kind != "transfer")
+            {
+                response.Reply = _translator.Translate(language, "This does not look like a receipt or a bank transfer");
+                return response;
+            }
+            DateTime date = today;
+            bool hasDate = DateTime.TryParseExact(image.date, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out DateTime imageDate) && imageDate <= today.AddDays(1) && imageDate > today.AddYears(-5);
+            if (hasDate)
+            {
+                date = imageDate;
+            }
+            else
+            {
+                response.Warnings.Add(_translator.Translate(language, "No date found, using today"));
+            }
+            var files = new List<UploadedFiles> { new UploadedFiles { Name = string.IsNullOrWhiteSpace(fileName) ? Path.GetFileName(tempLocation) : Path.GetFileName(fileName), Location = tempLocation, IsPending = true } };
+            var lines = (image.lines ?? new List<ImageLine>()).Where(x => !string.IsNullOrWhiteSpace(x.name)).ToList();
+            decimal total = image.total > 0 ? Math.Round(image.total) : 0;
+            if (image.kind == "transfer")
+            {
+                var payment = new AiPayment
+                {
+                    Amount = total,
+                    AmountText = total.ToString("C"),
+                    Date = date.ToShortDateString(),
+                    Bank = Clean(image.bank, 60),
+                    Reference = Clean(image.reference, 60),
+                    Recipient = MaskAccountNumbers(Clean(image.recipient, 80)),
+                    Content = MaskAccountNumbers(Clean(image.content))
+                };
+                response.Payment = payment;
+                if (payment.Amount <= 0)
+                {
+                    response.Reply = _translator.Translate(language, "Could not read the transfer amount");
+                    return response;
+                }
+                //look for the same transaction, and for records this transfer may be paying for.
+                foreach (var vehicle in vehicles)
+                {
+                    var records = _vehicleLogic.GetVehicleRecords(vehicle.Id);
+                    var candidates = records.ServiceRecords.Select(x => (type: ImportMode.ServiceRecord, x.Id, x.Date, x.Description, x.Cost, x.Notes))
+                        .Concat(records.CollisionRecords.Select(x => (type: ImportMode.RepairRecord, x.Id, x.Date, x.Description, x.Cost, x.Notes)))
+                        .Concat(records.UpgradeRecords.Select(x => (type: ImportMode.UpgradeRecord, x.Id, x.Date, x.Description, x.Cost, x.Notes)))
+                        .Concat(records.GasRecords.Select(x => (type: ImportMode.GasRecord, x.Id, x.Date, Description: _translator.Translate(language, "Fuel"), x.Cost, x.Notes)))
+                        .Concat(records.TaxRecords.Select(x => (type: ImportMode.TaxRecord, x.Id, x.Date, x.Description, x.Cost, x.Notes)));
+                    foreach (var candidate in candidates)
+                    {
+                        if (HasReference(candidate.Notes, payment.Reference))
+                        {
+                            response.Payment = null;
+                            response.Reply = $"{_translator.Translate(language, "This transfer has already been recorded")}: {VehicleName(vehicle)} - {candidate.Description} ({candidate.Date.ToShortDateString()})";
+                            return response;
+                        }
+                        bool sameAmount = candidate.Cost > 0 && Math.Abs(candidate.Cost - payment.Amount) <= payment.Amount * 0.01m;
+                        bool closeDate = Math.Abs((candidate.Date.Date - date).TotalDays) <= 3;
+                        bool unpaid = !(candidate.Notes ?? string.Empty).Contains($"{ReferenceLabel}:");
+                        if (sameAmount && closeDate && unpaid)
+                        {
+                            response.Matches.Add(new AiPaymentMatch { RecordType = candidate.type, RecordId = candidate.Id, VehicleId = vehicle.Id, VehicleName = VehicleName(vehicle), Date = candidate.Date.ToShortDateString(), Description = candidate.Description, Cost = candidate.Cost, CostText = candidate.Cost.ToString("C") });
+                        }
+                    }
+                }
+                //no record yet: propose a new one from the transfer content.
+                var parsedContent = VietnameseTextParser.Parse($"{payment.Content} {payment.Recipient}", vehicles, today);
+                var transferIntent = parsedContent.Intent == AiIntent.Service ? AiIntent.Service : AiIntent.Expense;
+                var transferTags = transferIntent == AiIntent.Service ? parsedContent.MaintenanceTags.ToList() : parsedContent.ExpenseTags.ToList();
+                string transferDescription;
+                if (transferIntent == AiIntent.Service)
+                {
+                    transferDescription = string.Join(", ", transferTags.Select(x => _translator.Translate(language, MaintenanceCatalog.Items.First(y => y.Tag == x).Name)));
+                }
+                else
+                {
+                    if (!transferTags.Any()) { transferTags.Add(ExpenseCatalog.OtherTag); }
+                    transferDescription = transferTags.SequenceEqual(new[] { ExpenseCatalog.OtherTag }) && !string.IsNullOrWhiteSpace(payment.Content)
+                        ? payment.Content
+                        : string.Join(", ", transferTags.Select(x => _translator.Translate(language, ExpenseCatalog.Categories.First(y => y.Tag == x).Name)));
+                }
+                transferTags.Add(PaidTag);
+                response.Draft = new AiDraft
+                {
+                    Intent = transferIntent,
+                    VehicleId = parsedContent.VehicleId,
+                    Date = date.ToShortDateString(),
+                    Mileage = parsedContent.Mileage ?? 0,
+                    Cost = payment.Amount,
+                    Description = transferDescription,
+                    Tags = transferTags,
+                    Notes = PaymentNote(payment, language),
+                    Files = files,
+                    AttachFiles = false
+                };
+                if (parsedContent.VehicleId == 0)
+                {
+                    response.Warnings.Add(_translator.Translate(language, "Which vehicle is this for?"));
+                }
+                response.IsDraft = true;
+                return response;
+            }
+            //receipt
+            decimal lineSum = lines.Sum(x => x.amount);
+            if (total == 0 && lineSum > 0)
+            {
+                total = Math.Round(lineSum);
+                response.Warnings.Add(_translator.Translate(language, "No total found, using the sum of the lines"));
+            }
+            else if (lineSum > 0 && Math.Abs(lineSum - total) > total * 0.01m)
+            {
+                response.Warnings.Add($"{_translator.Translate(language, "The lines do not add up to the total")}: {lineSum.ToString("C")} / {total.ToString("C")}");
+            }
+            if (total == 0)
+            {
+                response.Warnings.Add(_translator.Translate(language, "No cost found"));
+            }
+            else if (total < 1000)
+            {
+                response.Warnings.Add(_translator.Translate(language, "The amount looks too small, please check"));
+            }
+            var vendor = Clean(image.vendor, 100);
+            var itemText = string.Join(". ", lines.Select(x => Clean(x.name)));
+            var parsedReceipt = VietnameseTextParser.Parse($"{Clean(image.plate, 20)} {vendor}. {itemText}", vehicles, today);
+            var receiptIntent = parsedReceipt.Intent switch
+            {
+                AiIntent.Fuel => AiIntent.Fuel,
+                AiIntent.Expense when parsedReceipt.ExpenseTags.Any() => AiIntent.Expense,
+                _ => AiIntent.Service
+            };
+            var receiptTags = receiptIntent == AiIntent.Expense ? parsedReceipt.ExpenseTags.ToList() : (receiptIntent == AiIntent.Service ? parsedReceipt.MaintenanceTags.ToList() : new List<string>());
+            string receiptDescription = string.Empty;
+            if (receiptIntent == AiIntent.Service && receiptTags.Any())
+            {
+                receiptDescription = string.Join(", ", receiptTags.Select(x => _translator.Translate(language, MaintenanceCatalog.Items.First(y => y.Tag == x).Name)));
+            }
+            else if (receiptIntent == AiIntent.Expense)
+            {
+                receiptDescription = string.Join(", ", receiptTags.Select(x => _translator.Translate(language, ExpenseCatalog.Categories.First(y => y.Tag == x).Name)));
+            }
+            if (string.IsNullOrWhiteSpace(receiptDescription))
+            {
+                receiptDescription = Clean(lines.Any() ? string.Join(", ", lines.Take(4).Select(x => Clean(x.name, 40))) : vendor, 150);
+            }
+            var notes = new StringBuilder();
+            notes.AppendLine($"{_translator.Translate(language, "Read from receipt")}{(string.IsNullOrWhiteSpace(vendor) ? "" : $": {vendor}")}");
+            foreach (var line in lines.Take(30))
+            {
+                notes.AppendLine($"- {Clean(line.name, 80)}: {line.amount.ToString("C")}");
+            }
+            int receiptMileage = image.odometer > 0 && image.odometer < 2000000 ? (int)image.odometer : 0;
+            response.Draft = new AiDraft
+            {
+                Intent = receiptIntent,
+                VehicleId = parsedReceipt.VehicleId,
+                Date = date.ToShortDateString(),
+                Mileage = receiptMileage,
+                Cost = total,
+                FuelAmount = parsedReceipt.FuelAmount ?? 0,
+                Description = receiptDescription,
+                Tags = receiptTags,
+                Notes = notes.ToString().TrimEnd(),
+                Files = files,
+                AttachFiles = true
+            };
+            if (parsedReceipt.VehicleId == 0)
+            {
+                response.Warnings.Add(_translator.Translate(language, "Which vehicle is this for?"));
+            }
+            if (receiptIntent != AiIntent.Expense && receiptMileage == 0)
+            {
+                response.Warnings.Add(_translator.Translate(language, "No odometer reading found"));
+            }
+            if (receiptIntent == AiIntent.Fuel && response.Draft.FuelAmount == 0)
+            {
+                response.Warnings.Add(_translator.Translate(language, "No fuel amount found"));
+            }
+            response.IsDraft = true;
+            return response;
+        }
+        private List<UploadedFiles> StoreFiles(List<UploadedFiles>? files, bool attach)
+        {
+            var stored = new List<UploadedFiles>();
+            foreach (var file in (files ?? new List<UploadedFiles>()).Where(x => IsValidTempLocation(x.Location)))
+            {
+                if (attach)
+                {
+                    stored.Add(new UploadedFiles { Name = Clean(Path.GetFileName(file.Name), 100), Location = _fileHelper.MoveFileFromTemp(file.Location, "documents/") });
+                }
+                else
+                {
+                    //the user chose not to keep the image.
+                    _fileHelper.DeleteFile(file.Location);
+                }
+            }
+            return stored;
+        }
+        public int GetRecordVehicleId(ImportMode recordType, int recordId)
+        {
+            return recordType switch
+            {
+                ImportMode.ServiceRecord => _serviceRecordDataAccess.GetServiceRecordById(recordId)?.VehicleId ?? 0,
+                ImportMode.RepairRecord => _collisionRecordDataAccess.GetCollisionRecordById(recordId)?.VehicleId ?? 0,
+                ImportMode.UpgradeRecord => _upgradeRecordDataAccess.GetUpgradeRecordById(recordId)?.VehicleId ?? 0,
+                ImportMode.GasRecord => _gasRecordDataAccess.GetGasRecordById(recordId)?.VehicleId ?? 0,
+                ImportMode.TaxRecord => _taxRecordDataAccess.GetTaxRecordById(recordId)?.VehicleId ?? 0,
+                _ => 0
+            };
+        }
+        /// <summary>
+        /// Marks an existing record as paid by the transfer: adds the payment details to its notes, a "paid" tag and optionally the screenshot.
+        /// </summary>
+        public OperationResponse AttachPayment(AiAttachPaymentRequest request, UserConfig userConfig)
+        {
+            var language = userConfig.UserLanguage;
+            var payment = request.Payment ?? new AiPayment();
+            payment.Bank = Clean(payment.Bank, 60);
+            payment.Reference = Clean(payment.Reference, 60);
+            payment.Recipient = MaskAccountNumbers(Clean(payment.Recipient, 80));
+            payment.Content = MaskAccountNumbers(Clean(payment.Content));
+            payment.Date = Clean(payment.Date, 20);
+            var note = PaymentNote(payment, language);
+            string AddNote(string existing) => string.IsNullOrWhiteSpace(existing) ? note : $"{existing}\n{note}";
+            List<string> AddTag(List<string> tags) => (tags ?? new List<string>()).Append(PaidTag).Distinct().ToList();
+            bool AlreadyPaid(string notes) => (notes ?? string.Empty).Contains($"{ReferenceLabel}:");
+            var alreadyPaid = OperationResponse.Failed(_translator.Translate(language, "This record already has a payment"));
+            bool result;
+            switch (request.RecordType)
+            {
+                case ImportMode.ServiceRecord:
+                    var serviceRecord = _serviceRecordDataAccess.GetServiceRecordById(request.RecordId);
+                    if (AlreadyPaid(serviceRecord.Notes)) { return alreadyPaid; }
+                    serviceRecord.Notes = AddNote(serviceRecord.Notes); serviceRecord.Tags = AddTag(serviceRecord.Tags); serviceRecord.Files.AddRange(StoreFiles(request.Files, request.AttachFiles));
+                    result = _serviceRecordDataAccess.SaveServiceRecordToVehicle(serviceRecord);
+                    break;
+                case ImportMode.RepairRecord:
+                    var repairRecord = _collisionRecordDataAccess.GetCollisionRecordById(request.RecordId);
+                    if (AlreadyPaid(repairRecord.Notes)) { return alreadyPaid; }
+                    repairRecord.Notes = AddNote(repairRecord.Notes); repairRecord.Tags = AddTag(repairRecord.Tags); repairRecord.Files.AddRange(StoreFiles(request.Files, request.AttachFiles));
+                    result = _collisionRecordDataAccess.SaveCollisionRecordToVehicle(repairRecord);
+                    break;
+                case ImportMode.UpgradeRecord:
+                    var upgradeRecord = _upgradeRecordDataAccess.GetUpgradeRecordById(request.RecordId);
+                    if (AlreadyPaid(upgradeRecord.Notes)) { return alreadyPaid; }
+                    upgradeRecord.Notes = AddNote(upgradeRecord.Notes); upgradeRecord.Tags = AddTag(upgradeRecord.Tags); upgradeRecord.Files.AddRange(StoreFiles(request.Files, request.AttachFiles));
+                    result = _upgradeRecordDataAccess.SaveUpgradeRecordToVehicle(upgradeRecord);
+                    break;
+                case ImportMode.GasRecord:
+                    var gasRecord = _gasRecordDataAccess.GetGasRecordById(request.RecordId);
+                    if (AlreadyPaid(gasRecord.Notes)) { return alreadyPaid; }
+                    gasRecord.Notes = AddNote(gasRecord.Notes); gasRecord.Tags = AddTag(gasRecord.Tags); gasRecord.Files.AddRange(StoreFiles(request.Files, request.AttachFiles));
+                    result = _gasRecordDataAccess.SaveGasRecordToVehicle(gasRecord);
+                    break;
+                case ImportMode.TaxRecord:
+                    var taxRecord = _taxRecordDataAccess.GetTaxRecordById(request.RecordId);
+                    if (AlreadyPaid(taxRecord.Notes)) { return alreadyPaid; }
+                    taxRecord.Notes = AddNote(taxRecord.Notes); taxRecord.Tags = AddTag(taxRecord.Tags); taxRecord.Files.AddRange(StoreFiles(request.Files, request.AttachFiles));
+                    result = _taxRecordDataAccess.SaveTaxRecordToVehicle(taxRecord);
+                    break;
+                default:
+                    return OperationResponse.Failed(StaticHelper.GenericErrorMessage);
+            }
+            return OperationResponse.Conditional(result, _translator.Translate(language, "Saved"), StaticHelper.GenericErrorMessage);
+        }
         public OperationResponse SaveDraft(AiDraft draft, Vehicle vehicle, UserConfig userConfig, int userId, string userName)
         {
             var language = userConfig.UserLanguage;
@@ -393,6 +802,11 @@ namespace CarCareTracker.Logic
             draft.Tags = (draft.Tags ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).Select(x => x.Trim()).Distinct().ToList();
             draft.Description = (draft.Description ?? string.Empty).Trim();
             draft.Notes = draft.Notes ?? string.Empty;
+            if (draft.Intent != AiIntent.Service && draft.Intent != AiIntent.Fuel && draft.Intent != AiIntent.Expense && draft.Intent != AiIntent.Odometer)
+            {
+                return OperationResponse.Failed(StaticHelper.GenericErrorMessage);
+            }
+            var storedFiles = StoreFiles(draft.Files, draft.AttachFiles);
             bool result;
             bool insertOdometer = false;
             ImportMode source = ImportMode.ServiceRecord;
@@ -404,7 +818,7 @@ namespace CarCareTracker.Logic
                     {
                         return OperationResponse.Failed(_translator.Translate(language, "Description is required"));
                     }
-                    var serviceRecord = new ServiceRecord { VehicleId = vehicle.Id, Date = date, Mileage = draft.Mileage, Cost = draft.Cost, Description = draft.Description, Notes = draft.Notes, Tags = draft.Tags };
+                    var serviceRecord = new ServiceRecord { VehicleId = vehicle.Id, Date = date, Mileage = draft.Mileage, Cost = draft.Cost, Description = draft.Description, Notes = draft.Notes, Tags = draft.Tags, Files = storedFiles };
                     result = _serviceRecordDataAccess.SaveServiceRecordToVehicle(serviceRecord);
                     if (result)
                     {
@@ -419,7 +833,7 @@ namespace CarCareTracker.Logic
                     {
                         return OperationResponse.Failed(_translator.Translate(language, "No fuel amount found"));
                     }
-                    var gasRecord = new GasRecord { VehicleId = vehicle.Id, Date = date, Mileage = draft.Mileage, Gallons = draft.FuelAmount, Cost = draft.Cost, IsFillToFull = draft.IsFillToFull, Notes = draft.Notes, Tags = draft.Tags };
+                    var gasRecord = new GasRecord { VehicleId = vehicle.Id, Date = date, Mileage = draft.Mileage, Gallons = draft.FuelAmount, Cost = draft.Cost, IsFillToFull = draft.IsFillToFull, Notes = draft.Notes, Tags = draft.Tags, Files = storedFiles };
                     result = _gasRecordDataAccess.SaveGasRecordToVehicle(gasRecord);
                     if (result)
                     {
@@ -435,7 +849,7 @@ namespace CarCareTracker.Logic
                     {
                         return OperationResponse.Failed(_translator.Translate(language, "Description is required"));
                     }
-                    var taxRecord = new TaxRecord { VehicleId = vehicle.Id, Date = date, Cost = draft.Cost, Description = draft.Description, Notes = draft.Notes, Tags = draft.Tags };
+                    var taxRecord = new TaxRecord { VehicleId = vehicle.Id, Date = date, Cost = draft.Cost, Description = draft.Description, Notes = draft.Notes, Tags = draft.Tags, Files = storedFiles };
                     result = _taxRecordDataAccess.SaveTaxRecordToVehicle(taxRecord);
                     if (result)
                     {
@@ -448,7 +862,7 @@ namespace CarCareTracker.Logic
                     {
                         return OperationResponse.Failed(_translator.Translate(language, "No odometer reading found"));
                     }
-                    result = _odometerLogic.AutoInsertOdometerRecord(new OdometerRecord { VehicleId = vehicle.Id, Date = date, Mileage = draft.Mileage, Notes = draft.Notes });
+                    result = _odometerLogic.AutoInsertOdometerRecord(new OdometerRecord { VehicleId = vehicle.Id, Date = date, Mileage = draft.Mileage, Notes = draft.Notes, Files = storedFiles });
                     break;
                 default:
                     return OperationResponse.Failed(StaticHelper.GenericErrorMessage);

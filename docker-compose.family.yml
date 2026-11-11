@@ -39,6 +39,8 @@ services:
       # Khi chưa bật, trợ lý vẫn đọc được các câu thông dụng bằng bộ quy tắc có sẵn.
       # - LUBELOGGER_AI_URL=http://ollama:11434
       - LUBELOGGER_AI_MODEL=qwen2.5:7b
+      # Mô hình đọc ảnh hoá đơn / ảnh chuyển khoản (cần tải riêng: ollama pull qwen2.5vl:7b)
+      - LUBELOGGER_AI_VISION_MODEL=qwen2.5vl:7b
     volumes:
       - data:/App/data
       - keys:/root/.aspnet/DataProtection-Keys

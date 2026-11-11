@@ -44,6 +44,11 @@ function appendAssistantDraft(response) {
     card.find('.draft-description').val(draft.description);
     card.find('.draft-tags').val((draft.tags || []).join(' '));
     card.find('.draft-full').prop('checked', draft.isFillToFull);
+    card.data('files', draft.files || []);
+    if ((draft.files || []).length > 0) {
+        card.find('.draft-field-attach').css('display', 'block');
+        card.find('.draft-attach').prop('checked', draft.attachFiles);
+    }
     var warnings = card.find('.assistant-warnings');
     (response.warnings || []).forEach(function (warning) {
         warnings.append($('<div></div>').text(warning).prepend('<i class="bi bi-exclamation-triangle me-1"></i>'));
@@ -51,6 +56,7 @@ function appendAssistantDraft(response) {
     $("#assistantMessages").append(card);
     updateAssistantDraftFields(card.find('.draft-intent'));
     scrollAssistantToBottom();
+    return card;
 }
 function sendAssistantMessage() {
     var input = $("#assistantInput");
@@ -60,7 +66,7 @@ function sendAssistantMessage() {
     }
     appendAssistantMessage(message, true);
     input.val('');
-    $("#assistantSend").prop('disabled', true);
+    setAssistantBusy(true);
     var pending = appendAssistantMessage('…', false);
     $.post('/Ai/Chat', { message: message }, function (data) {
         pending.remove();
@@ -73,7 +79,7 @@ function sendAssistantMessage() {
         pending.remove();
         errorToast(genericErrorMessage());
     }).always(function () {
-        $("#assistantSend").prop('disabled', false);
+        setAssistantBusy(false);
         input.focus();
     });
 }
@@ -102,7 +108,9 @@ function saveAssistantDraft(sender) {
         description: card.find('.draft-description').val(),
         tags: card.find('.draft-tags').val().split(/[\s,]+/).filter(x => x != ''),
         isFillToFull: card.find('.draft-full').is(':checked'),
-        notes: card.data('notes') || ''
+        notes: card.data('notes') || '',
+        files: card.data('files') || [],
+        attachFiles: card.find('.draft-attach').is(':checked')
     };
     $(sender).prop('disabled', true);
     $.ajax({
@@ -122,6 +130,118 @@ function saveAssistantDraft(sender) {
         },
         error: function () {
             $(sender).prop('disabled', false);
+            errorToast(genericErrorMessage());
+        }
+    });
+}
+
+//shrinks a photo in the browser so uploads are small and the home AI reads it faster.
+function resizeAssistantImage(file, maxSide) {
+    return new Promise(function (resolve, reject) {
+        var image = new Image();
+        var url = URL.createObjectURL(file);
+        image.onload = function () {
+            var scale = Math.min(1, maxSide / Math.max(image.width, image.height));
+            var canvas = document.createElement('canvas');
+            canvas.width = Math.round(image.width * scale);
+            canvas.height = Math.round(image.height * scale);
+            canvas.getContext('2d').drawImage(image, 0, 0, canvas.width, canvas.height);
+            URL.revokeObjectURL(url);
+            canvas.toBlob(function (blob) { blob ? resolve(blob) : reject(); }, 'image/jpeg', 0.88);
+        };
+        image.onerror = function () { URL.revokeObjectURL(url); reject(); };
+        image.src = url;
+    });
+}
+function setAssistantBusy(busy) {
+    $("#assistantSend, #assistantImageButton").prop('disabled', busy);
+}
+function sendAssistantImage(sender) {
+    var file = sender.files[0];
+    sender.value = '';
+    if (!file) {
+        return;
+    }
+    var preview = $('<div class="d-flex mb-2 justify-content-end"></div>');
+    var previewUrl = URL.createObjectURL(file);
+    preview.append($('<img class="rounded border" style="max-width:45%; max-height:240px;">').attr('src', previewUrl).attr('alt', file.name));
+    $("#assistantMessages").append(preview);
+    var pending = appendAssistantMessage('…', false);
+    setAssistantBusy(true);
+    var fail = function () {
+        pending.remove();
+        setAssistantBusy(false);
+        errorToast(genericErrorMessage());
+    };
+    resizeAssistantImage(file, 1600).then(function (blob) {
+        var formData = new FormData();
+        formData.append('file', blob, 'photo.jpg');
+        $.ajax({
+            url: '/Files/HandleFileUpload', type: 'POST', data: formData, processData: false, contentType: false,
+            success: function (location) {
+                $.post('/Ai/Image', { location: location, name: file.name.replace(/\.[^.]+$/, '') + '.jpg' }, function (data) {
+                    pending.remove();
+                    setAssistantBusy(false);
+                    if (data.reply) {
+                        appendAssistantMessage(data.reply, false);
+                    }
+                    var matchCard = null;
+                    if (data.payment && data.matches && data.matches.length > 0) {
+                        matchCard = appendAssistantMatches(data);
+                    }
+                    if (data.isDraft) {
+                        var draftCard = appendAssistantDraft(data);
+                        if (matchCard) {
+                            matchCard.data('draftCard', draftCard);
+                        }
+                    }
+                }).fail(fail);
+            },
+            error: fail
+        });
+    }, fail);
+}
+function appendAssistantMatches(response) {
+    var template = document.getElementById('assistantMatchTemplate');
+    var card = $(template.content.cloneNode(true)).children().first();
+    var payment = response.payment;
+    card.find('.match-summary').text([payment.amountText, payment.date, payment.bank, payment.recipient, payment.content].filter(x => x).join(' · '));
+    var list = card.find('.match-list');
+    response.matches.forEach(function (match) {
+        var row = $('<div class="list-group-item d-flex justify-content-between align-items-center gap-2"></div>');
+        row.append($('<span class="small"></span>').text(`${match.vehicleName} - ${match.description} (${match.date}, ${match.costText})`));
+        var button = $('<button type="button" class="btn btn-sm btn-primary text-nowrap"></button>').text($('#assistantMarkPaidLabel').text());
+        button.on('click', function () { attachAssistantPayment(card, match, payment, response.draft.files || [], button); });
+        row.append(button);
+        list.append(row);
+    });
+    $("#assistantMessages").append(card);
+    scrollAssistantToBottom();
+    return card;
+}
+function attachAssistantPayment(card, match, payment, files, button) {
+    button.prop('disabled', true);
+    var draftCard = card.data('draftCard');
+    $.ajax({
+        url: '/Ai/AttachPayment',
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify({ recordType: match.recordType, recordId: match.recordId, payment: payment, files: files, attachFiles: draftCard ? draftCard.find('.draft-attach').is(':checked') : false }),
+        success: function (data) {
+            if (data.success) {
+                card.find('button').remove();
+                card.find('.match-hint').remove();
+                card.find('.match-status').show();
+                if (draftCard) {
+                    draftCard.remove();
+                }
+            } else {
+                button.prop('disabled', false);
+                errorToast(data.message);
+            }
+        },
+        error: function () {
+            button.prop('disabled', false);
             errorToast(genericErrorMessage());
         }
     });

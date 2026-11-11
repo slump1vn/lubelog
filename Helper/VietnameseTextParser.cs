@@ -46,7 +46,7 @@ namespace CarCareTracker.Helper
             ("nhong xich", "nhong-xich"), ("nhong sen dia", "nhong-xich"), ("nhong sen", "nhong-xich"), ("sen dia", "nhong-xich"),
             ("day curoa", "day-curoa"), ("curoa", "day-curoa"), ("day dai", "day-curoa"),
             ("loc nhot", "loc-dau"), ("loc dau", "loc-dau"), ("thay loc", "loc-dau"),
-            ("thay nhot", "dau-may"), ("thay dau", "dau-may"), ("nhot may", "dau-may"), ("dau may", "dau-may"),
+            ("thay nhot", "dau-may"), ("thay dau", "dau-may"), ("nhot may", "dau-may"), ("dau may", "dau-may"), ("dau nhot", "dau-may"), ("nhot", "dau-may"),
             ("bao duong", "bao-duong-dinh-ky")
         };
         private static readonly (string phrase, string tag)[] ExpensePhrases = new[]
@@ -320,7 +320,7 @@ namespace CarCareTracker.Helper
             {
                 result.Intent = AiIntent.QueryReminders;
             }
-            else if (mentionsFuel || result.FuelAmount.HasValue)
+            else if (mentionsFuel || (result.FuelAmount.HasValue && !result.MaintenanceTags.Any()))
             {
                 result.Intent = AiIntent.Fuel;
             }
