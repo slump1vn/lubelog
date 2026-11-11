@@ -115,6 +115,7 @@ builder.Services.AddSingleton<IOdometerLogic, OdometerLogic>();
 builder.Services.AddSingleton<IVehicleLogic, VehicleLogic>();
 builder.Services.AddSingleton<INotificationLogic, NotificationLogic>();
 builder.Services.AddSingleton<IMaintenanceLogic, MaintenanceLogic>();
+builder.Services.AddSingleton<IAiLogic, AiLogic>();
 
 //configure automated event logic
 if (StaticHelper.CheckConfigBoolean(builder.Configuration, "LUBELOGGER_AUTO_EVENTS"))

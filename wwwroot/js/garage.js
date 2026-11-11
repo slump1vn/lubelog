@@ -53,6 +53,9 @@ function bindTabEvent() {
             case "expense-tab":
                 loadHouseholdExpenses(0);
                 break;
+            case "assistant-tab":
+                loadAssistant();
+                break;
         }
         $(`.lubelogger-tab #${e.target.id}`).addClass('active');
         $(`.lubelogger-mobile-nav #${e.target.id}`).addClass('active');
@@ -72,6 +75,9 @@ function bindTabEvent() {
                     break;
                 case "expense-tab":
                     $("#expense-tab-pane").html("");
+                    break;
+                case "assistant-tab":
+                    $("#assistant-tab-pane").html("");
                     break;
             }
             $(`.lubelogger-tab #${e.relatedTarget.id}`).removeClass('active');

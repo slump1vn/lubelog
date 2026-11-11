@@ -1,0 +1,103 @@
+@using CarCareTracker.Helper
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model List<Vehicle>
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+    bool modelConfigured = ViewBag.ModelConfigured ?? false;
+}
+<div class="row mt-2 justify-content-center">
+    <div class="col-12 col-lg-8">
+        <div class="d-flex align-items-center flex-wrap gap-2 mb-2">
+            <span class="lead">@translator.Translate(userLanguage, "Assistant")</span>
+            @if (modelConfigured)
+            {
+                <span class="badge bg-success">@translator.Translate(userLanguage, "Home AI: On")</span>
+            }
+            else
+            {
+                <span class="badge bg-secondary" title="LUBELOGGER_AI_URL">@translator.Translate(userLanguage, "Home AI: Off (basic parser only)")</span>
+            }
+        </div>
+        <div id="assistantMessages" class="border rounded p-2 mb-2" style="height:55vh; overflow-y:auto;" aria-live="polite">
+            <div class="text-body-secondary small">
+                @translator.Translate(userLanguage, "Type what you did, for example:")
+                <ul class="mb-0">
+                    <li>Hôm nay thay nhớt Vision ở 12.350km hết 120k, có thay lọc</li>
+                    <li>Đổ xăng CX5 800 nghìn, 36 lít, odo 45200</li>
+                    <li>Gửi xe tháng 11 hết 1tr2</li>
+                    <li>Bao giờ phải thay ắc quy?</li>
+                    <li>Tháng này tiêu bao nhiêu?</li>
+                </ul>
+            </div>
+        </div>
+        <div class="input-group">
+            <input type="text" id="assistantInput" class="form-control" autocomplete="off" placeholder="@translator.Translate(userLanguage, "Type a message")" aria-label="@translator.Translate(userLanguage, "Type a message")" onkeydown="if (event.key === 'Enter') { event.preventDefault(); sendAssistantMessage(); }">
+            <button class="btn btn-primary" type="button" id="assistantSend" onclick="sendAssistantMessage()"><i class="bi bi-send me-2"></i>@translator.Translate(userLanguage, "Send")</button>
+        </div>
+    </div>
+</div>
+<template id="assistantDraftTemplate">
+    <div class="card mb-2 assistant-draft">
+        <div class="card-body">
+            <div class="assistant-warnings text-warning-emphasis small mb-2"></div>
+            <div class="row g-2">
+                <div class="col-6 col-md-4">
+                    <label class="form-label small mb-0">@translator.Translate(userLanguage, "Type")</label>
+                    <select class="form-select form-select-sm draft-intent" onchange="updateAssistantDraftFields(this)">
+                        <option value="1">@translator.Translate(userLanguage, "Service")</option>
+                        <option value="2">@translator.Translate(userLanguage, "Fuel")</option>
+                        <option value="3">@translator.Translate(userLanguage, "Other Expenses")</option>
+                        <option value="4">@translator.Translate(userLanguage, "Odometer")</option>
+                    </select>
+                </div>
+                <div class="col-6 col-md-4">
+                    <label class="form-label small mb-0">@translator.Translate(userLanguage, "Vehicle")</label>
+                    <select class="form-select form-select-sm draft-vehicle">
+                        <option value="0">---</option>
+                        @foreach (Vehicle vehicle in Model)
+                        {
+                            <option value="@vehicle.Id">@($"{vehicle.Make} {vehicle.Model} ({vehicle.LicensePlate})")</option>
+                        }
+                    </select>
+                </div>
+                <div class="col-6 col-md-4">
+                    <label class="form-label small mb-0">@translator.Translate(userLanguage, "Date")</label>
+                    <input type="text" class="form-control form-control-sm draft-date">
+                </div>
+                <div class="col-6 col-md-4 draft-field-mileage">
+                    <label class="form-label small mb-0">@translator.Translate(userLanguage, "Odometer")</label>
+                    <input type="number" min="0" step="1" inputmode="numeric" class="form-control form-control-sm draft-mileage">
+                </div>
+                <div class="col-6 col-md-4 draft-field-fuel">
+                    <label class="form-label small mb-0">@translator.Translate(userLanguage, "Fuel Consumption")</label>
+                    <input type="number" min="0" step="any" inputmode="decimal" class="form-control form-control-sm draft-fuel">
+                </div>
+                <div class="col-6 col-md-4 draft-field-cost">
+                    <label class="form-label small mb-0">@translator.Translate(userLanguage, "Cost")</label>
+                    <input type="number" min="0" step="any" inputmode="decimal" class="form-control form-control-sm draft-cost">
+                </div>
+                <div class="col-12 col-md-8 draft-field-description">
+                    <label class="form-label small mb-0">@translator.Translate(userLanguage, "Description")</label>
+                    <input type="text" class="form-control form-control-sm draft-description">
+                </div>
+                <div class="col-12 col-md-4 draft-field-tags">
+                    <label class="form-label small mb-0">@translator.Translate(userLanguage, "Tags")</label>
+                    <input type="text" class="form-control form-control-sm draft-tags">
+                </div>
+                <div class="col-12 draft-field-full">
+                    <div class="form-check">
+                        <input class="form-check-input draft-full" type="checkbox">
+                        <label class="form-check-label small">@translator.Translate(userLanguage, "Is Filled To Full")</label>
+                    </div>
+                </div>
+            </div>
+            <div class="d-flex justify-content-end gap-2 mt-2 draft-actions">
+                <button type="button" class="btn btn-sm btn-secondary" onclick="cancelAssistantDraft(this)">@translator.Translate(userLanguage, "Cancel")</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="saveAssistantDraft(this)">@translator.Translate(userLanguage, "Save")</button>
+            </div>
+            <div class="draft-status small text-success" style="display:none;"><i class="bi bi-check-circle me-1"></i>@translator.Translate(userLanguage, "Saved")</div>
+            <div class="draft-cancelled small text-body-secondary" style="display:none;">@translator.Translate(userLanguage, "Cancelled")</div>
+        </div>
+    </div>
+</template>

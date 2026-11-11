@@ -34,6 +34,11 @@ services:
       - VisibleTabs__7=10
       # Thêm sẵn các trường hãng, kích cỡ, ngày lắp, bảo hành cho thẻ Thiết bị (chỉ chạy một lần)
       - LUBELOGGER_FAMILY_DEFAULTS=true
+      # AI tại nhà: bỏ dấu # ở dòng dưới sau khi chạy Ollama (--profile ai) và tải mô hình:
+      #   docker compose -f docker-compose.family.yml exec ollama ollama pull qwen2.5:7b
+      # Khi chưa bật, trợ lý vẫn đọc được các câu thông dụng bằng bộ quy tắc có sẵn.
+      # - LUBELOGGER_AI_URL=http://ollama:11434
+      - LUBELOGGER_AI_MODEL=qwen2.5:7b
     volumes:
       - data:/App/data
       - keys:/root/.aspnet/DataProtection-Keys
