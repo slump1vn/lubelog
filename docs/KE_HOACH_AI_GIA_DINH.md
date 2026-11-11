@@ -255,7 +255,33 @@ Cả ba kênh dùng chung một máy chủ tại nhà và một cơ sở dữ li
 
 Tổng: **8–9 tuần** cho app; toàn dự án (máy chủ + Zalo + AI + app) khoảng **4–5 tháng** với một người làm.
 
-### 9.8 Điểm cần chốt cho app
-1. Cả nhà dùng Android, iPhone, hay cả hai?
-2. Chấp nhận dùng Firebase để đẩy thông báo, hay chỉ nhắc trên máy + Zalo?
-3. Có cần nhập bằng giọng nói ngay từ bản đầu không?
+### 9.8 Quyết định đã chốt cho app
+
+| Câu hỏi | Quyết định |
+|---|---|
+| Nền tảng | **Cả Android và iPhone** |
+| Thông báo đẩy | **Firebase (FCM)** — miễn phí, không giới hạn số tin |
+| Giọng nói | **Có ngay từ bản đầu** |
+
+**Android + iPhone**
+- Flutter một mã nguồn; mỗi bước A1–A6 đều thử trên cả hai hệ máy.
+- Cần **máy Mac** để build bản iPhone (hoặc dịch vụ build trên mây như Codemagic — có gói miễn phí giới hạn phút/tháng).
+- Chi phí bắt buộc: **Apple Developer 99 USD/năm** (cần cho cả TestFlight lẫn thông báo đẩy trên iPhone). Android: cài APK trực tiếp = 0 đồng.
+- "Chia sẻ từ app ngân hàng" trên iPhone cần viết thêm một phần mở rộng riêng (Share Extension) → cộng ~3 ngày vào bước A4.
+
+**Firebase (FCM)**
+- Phần thông báo đẩy của Firebase miễn phí hoàn toàn; không dùng các dịch vụ Firebase có tính tiền (cơ sở dữ liệu, lưu trữ, hàm chạy trên mây).
+- Máy chủ tại nhà gọi FCM HTTP v1 bằng khoá dịch vụ (lưu trong cấu hình máy chủ, không đưa vào repo).
+- Tin đẩy chỉ mang tín hiệu "có cập nhật" + mã bản ghi; app tự tải nội dung từ máy chủ nhà → Google không thấy dữ liệu xe/chi phí.
+- Nhắc theo ngày vẫn hẹn sẵn trên máy (hoạt động cả khi máy chủ hoặc mạng nhà tắt); Zalo là đường dự phòng.
+
+**Nhập bằng giọng nói**
+- Giữ nút micro → nói "thay nhớt Vision mười hai nghìn ba trăm năm mươi cây, hết một trăm hai" → chữ hiện ra để xem/sửa → gửi vào luồng chat AI như gõ tay.
+- Hai cách chuyển giọng nói thành chữ, chọn trong Cài đặt:
+  1. **Của điện thoại (mặc định):** nhanh, miễn phí, hỗ trợ tiếng Việt; nhưng âm thanh có thể được gửi lên máy chủ Apple/Google để nhận dạng.
+  2. **Tại nhà (riêng tư):** app ghi âm, gửi về máy chủ nhà, chạy Whisper (mô hình cỡ nhỏ/vừa hoặc PhoWhisper cho tiếng Việt) trong Docker. Chậm hơn vài giây, cần mạng về nhà, nhưng không có gì rời khỏi nhà — nhất quán với lựa chọn "AI tại nhà".
+- Cùng bộ Whisper tại nhà dùng luôn cho **tin nhắn thoại Zalo** (nếu Zalo OA chuyển được file ghi âm qua webhook — cần kiểm tra khi làm).
+- Chuẩn hoá số đọc bằng tiếng Việt ("một triệu hai", "mười hai nghìn rưỡi", "hai lít rưỡi") trước khi đưa cho AI; có bộ test riêng.
+- Lộ trình: thêm vào bước A4 (+3–4 ngày); Whisper tại nhà thêm 1 container vào Docker Compose ở giai đoạn 4 của máy chủ.
+
+**Chi phí vận hành tổng cộng:** Apple Developer 99 USD/năm + điện cho máy chủ nhà. Firebase, Cloudflare Tunnel, Ollama, Whisper, Zalo OA (tin tư vấn trong 7 ngày) đều 0 đồng. Tên miền riêng cho Cloudflare Tunnel (~10 USD/năm) nếu chưa có.
