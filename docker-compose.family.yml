@@ -42,7 +42,8 @@ services:
       # Mô hình đọc ảnh hoá đơn / ảnh chuyển khoản (cần tải riêng: ollama pull qwen2.5vl:7b)
       - LUBELOGGER_AI_VISION_MODEL=qwen2.5vl:7b
       # Dùng máy chủ llama.cpp (llama-server) hoặc máy chủ kiểu OpenAI khác thay cho Ollama:
-      #   llama-server phải chạy kèm --mmproj để đọc được ảnh; tên mô hình khi đó không quan trọng.
+      #   llama-server phải chạy kèm --mmproj để đọc được ảnh. Nếu dùng llama-swap, đặt LUBELOGGER_AI_MODEL và
+      #   LUBELOGGER_AI_VISION_MODEL đúng tên mô hình trong /v1/models.
       # - LUBELOGGER_AI_URL=http://192.168.2.135:9292
       # - LUBELOGGER_AI_API=openai
       # - LUBELOGGER_AI_KEY=   (chỉ cần nếu máy chủ đặt --api-key)

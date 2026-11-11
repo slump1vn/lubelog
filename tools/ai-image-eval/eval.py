@@ -4,7 +4,8 @@ Sends every image in images/ (or a folder you pass) to the model with the same p
 JSON schema the assistant uses (Logic/AiLogic.cs: BuildImagePrompt / BuildImageSchema), then
 compares the answer with expected.json.
 
-    python eval.py --url http://192.168.2.135:9292 --api openai
+    set LLAMA_API_KEY=...   (llama-swap / llama-server --api-key)
+    python eval.py --url http://192.168.2.135:9292 --api openai [--model <id from /v1/models>]
     python eval.py --url http://localhost:11434 --api ollama --model qwen2.5vl:7b
     python eval.py --url ... --images D:/my-photos      (no expected.json: prints what was read)
 
@@ -49,6 +50,19 @@ def load_image(path):
         mime = 'image/png' if data[:4] == b'\x89PNG' else 'image/jpeg'
     return base64.b64encode(data).decode(), mime
 
+def headers(args):
+    h = {'Content-Type': 'application/json'}
+    key = os.environ.get(args.key_env) or os.environ.get('LUBELOGGER_AI_KEY')
+    if key:
+        h['Authorization'] = 'Bearer ' + key
+    return h
+
+def list_models(args):
+    base = args.url.rstrip('/')
+    url = base + ('/models' if base.endswith('/v1') else '/v1/models')
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers(args)), timeout=30) as resp:
+        return [m['id'] for m in json.load(resp).get('data', [])]
+
 def ask(args, prompt, schema, b64, mime):
     if args.api == 'openai':
         url = args.url.rstrip('/') + ('/chat/completions' if args.url.rstrip('/').endswith('/v1') else '/v1/chat/completions')
@@ -60,7 +74,7 @@ def ask(args, prompt, schema, b64, mime):
         url = args.url.rstrip('/') + '/api/chat'
         req = {'model': args.model, 'stream': False, 'format': schema, 'options': {'temperature': 0},
                'messages': [{'role': 'system', 'content': prompt}, {'role': 'user', 'content': 'Đọc ảnh này.', 'images': [b64]}]}
-    r = urllib.request.Request(url, json.dumps(req).encode(), {'Content-Type': 'application/json'})
+    r = urllib.request.Request(url, json.dumps(req).encode(), headers(args))
     started = time.time()
     with urllib.request.urlopen(r, timeout=args.timeout) as resp:
         body = json.load(resp)
@@ -94,11 +108,21 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument('--url', required=True)
     p.add_argument('--api', choices=['openai', 'ollama'], default='openai')
-    p.add_argument('--model', default='qwen2.5vl:7b')
+    p.add_argument('--model', default='', help='model id; llama-swap picks the model by this name. Empty: list /v1/models and pick a vision-looking one')
+    p.add_argument('--key-env', default='LLAMA_API_KEY', help='environment variable holding the API key (also tries LUBELOGGER_AI_KEY)')
     p.add_argument('--images', default=os.path.join(os.path.dirname(os.path.abspath(__file__)), 'images'))
     p.add_argument('--timeout', type=int, default=300)
     p.add_argument('--out', default='results.json')
     args = p.parse_args()
+    if not args.model:
+        if args.api == 'ollama':
+            args.model = 'qwen2.5vl:7b'
+        else:
+            models = list_models(args)
+            print('Models on server:', ', '.join(models))
+            vision = [m for m in models if re.search(r'vl|vision|gemma-?3|llava|minicpm|pixtral|mistral-small-3|internvl|smolvlm', m, re.I)]
+            args.model = (vision or models)[0]
+        print('Using model:', args.model)
     exp_path = os.path.join(args.images, '..', 'expected.json')
     expected = json.load(open(exp_path, encoding='utf-8')) if os.path.exists(exp_path) else {}
     prompt, schema = build_prompt(date(2026, 11, 11)), build_schema()
