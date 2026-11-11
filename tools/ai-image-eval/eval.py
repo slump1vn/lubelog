@@ -23,7 +23,7 @@ def build_prompt(today):
     for m in re.finditer(r'prompt\.AppendLine\((\$?)"((?:[^"\\]|\\.)*)"\)', body):
         text = m.group(2).replace('\\"', '"')
         if m.group(1):
-            text = text.replace('{today:yyyy-MM-dd}', today.isoformat())
+            text = text.replace('{today:yyyy-MM-dd}', today.isoformat()).replace('{today:yyyy}', str(today.year))
         lines.append(text)
     return '\n'.join(lines) + '\n'
 

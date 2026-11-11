@@ -514,17 +514,18 @@ namespace CarCareTracker.Logic
         {
             var prompt = new StringBuilder();
             prompt.AppendLine("Bạn đọc ảnh chụp liên quan đến chi phí xe của một gia đình Việt Nam và trả về JSON đúng theo schema. Không thêm chữ nào ngoài JSON.");
-            prompt.AppendLine($"Hôm nay là {today:yyyy-MM-dd}.");
+            //only the year: given the full date, models copy it into receipts that show no date.
+            prompt.AppendLine($"Năm hiện tại là {today:yyyy}; chỉ dùng để đoán năm khi chứng từ ghi ngày/tháng mà thiếu năm.");
             prompt.AppendLine("kind:");
             prompt.AppendLine("- receipt: hoá đơn, phiếu sửa chữa/bảo dưỡng, biên lai của garage, cửa hàng phụ tùng, cây xăng, bãi gửi xe...");
             prompt.AppendLine("- transfer: ảnh chụp màn hình giao dịch chuyển khoản thành công của ngân hàng hoặc ví điện tử");
             prompt.AppendLine("- other: không phải hai loại trên hoặc không đọc được");
             prompt.AppendLine("Quy tắc chung:");
             prompt.AppendLine("- Mọi số tiền là số nguyên tính bằng đồng, không có dấu phân cách: 1.200.000đ = 1200000.");
-            prompt.AppendLine("- date: ngày trên chứng từ, dạng yyyy-MM-dd; chuỗi rỗng nếu không thấy.");
+            prompt.AppendLine("- date: ngày IN hoặc VIẾT trên chứng từ (vd. \"Ngày: 08/11/2026\" = 2026-11-08), dạng yyyy-MM-dd; chuỗi rỗng nếu không thấy. Không được dùng ngày hôm nay.");
             prompt.AppendLine("- Trường nào không có trên ảnh thì để chuỗi rỗng hoặc 0. Không được đoán.");
-            prompt.AppendLine("Với receipt: vendor = tên cửa hàng; total = tổng tiền phải trả (đã gồm VAT); odometer = số km chỉ khi phiếu ghi rõ \"Km\" hoặc \"số km\", là số nguyên; không lấy số trong biển số, số điện thoại hay số hoá đơn, không có thì 0; plate = biển số xe; lines = từng dòng hàng hoá/dịch vụ với name (giữ nguyên chữ trên phiếu) và amount (thành tiền của dòng).");
-            prompt.AppendLine("Với transfer: total = số tiền chuyển; bank = tên ngân hàng/ví của người chuyển; reference = mã giao dịch; recipient = TÊN người nhận; content = nội dung chuyển khoản. KHÔNG ghi số tài khoản vào bất kỳ trường nào.");
+            prompt.AppendLine("Với receipt: vendor = tên cửa hàng; total = tổng tiền phải trả (đã gồm VAT); odometer = số km chỉ khi phiếu ghi rõ \"Km\" hoặc \"số km\", là số nguyên; không lấy số trong biển số, số điện thoại hay số hoá đơn, không có thì 0; plate = biển số xe; lines = chỉ những dòng có ghi thành tiền (bỏ dòng in sẵn trên mẫu mà không có tiền) với name (giữ nguyên chữ trên phiếu) và amount (thành tiền của dòng).");
+            prompt.AppendLine("Với transfer: total = số tiền chuyển; bank = tên ngân hàng/ví của người chuyển; reference = giá trị ghi ngay cạnh nhãn \"Mã giao dịch\" hoặc \"Mã GD\" (không lấy mã khác in dưới số tiền nếu đã có nhãn này); recipient = TÊN người nhận; content = nội dung chuyển khoản. KHÔNG ghi số tài khoản vào bất kỳ trường nào.");
             return prompt.ToString();
         }
         private static JsonObject BuildImageSchema()
@@ -640,7 +641,7 @@ namespace CarCareTracker.Logic
                 response.Warnings.Add(_translator.Translate(language, "No date found, using today"));
             }
             var files = new List<UploadedFiles> { new UploadedFiles { Name = string.IsNullOrWhiteSpace(fileName) ? Path.GetFileName(tempLocation) : Path.GetFileName(fileName), Location = tempLocation, IsPending = true } };
-            var lines = (image.lines ?? new List<ImageLine>()).Where(x => !string.IsNullOrWhiteSpace(x.name)).ToList();
+            var lines = (image.lines ?? new List<ImageLine>()).Where(x => !string.IsNullOrWhiteSpace(x.name) && x.amount > 0).ToList();
             decimal total = image.total > 0 ? Math.Round(image.total) : 0;
             if (image.kind == "transfer")
             {
