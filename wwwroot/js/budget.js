@@ -230,11 +230,11 @@ function saveBudget() {
     });
 }
 // Times come from the server in UTC; show them in the phone's own time zone.
-function showBudgetTimes(container) {
+function showBudgetTimes(container, options) {
     $(container).find(".budget-time").each(function () {
         var time = new Date($(this).attr('datetime'));
         if (!isNaN(time)) {
-            $(this).text(time.toLocaleString());
+            $(this).text(time.toLocaleString(undefined, options));
         }
     });
 }
@@ -250,7 +250,8 @@ function loadFinanceDashboard() {
     $.get('/Budget/Dashboard', function (data) {
         if (data) {
             $("#overview-tab-pane").html(data);
-            showBudgetTimes("#overview-tab-pane");
+            //short form on the phone screen: "12/11, 05:01"
+            showBudgetTimes("#overview-tab-pane", { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
         }
     });
 }
