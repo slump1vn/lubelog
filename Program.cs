@@ -6,10 +6,12 @@ using CarCareTracker.Middleware;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.FileProviders;
 using System.Globalization;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -166,6 +168,25 @@ builder.Services.AddResponseCompression(options =>
     options.MimeTypes = StaticAssetCaching.CompressedMimeTypes;
 });
 
+//slow down password guessing: a fixed number of sign-in and reset attempts per client address.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(LoginSecurity.RateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        LoginSecurity.ClientKey(context),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = LoginSecurity.AttemptsPerWindow,
+            Window = LoginSecurity.Window,
+            QueueLimit = 0
+        }));
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.Headers.RetryAfter = ((int)LoginSecurity.Window.TotalSeconds).ToString(CultureInfo.InvariantCulture);
+        await context.HttpContext.Response.WriteAsJsonAsync(new { success = false, message = "Too many attempts. Please wait a few minutes and try again." }, cancellationToken);
+    };
+});
+
 var app = builder.Build();
 
 //family defaults (equipment extra fields for batteries and tires), applied once.
@@ -195,6 +216,8 @@ app.UseWhen(
 );
 
 app.UseRouting();
+
+app.UseRateLimiter();
 
 app.UseAuthorization();
 

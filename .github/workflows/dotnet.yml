@@ -1,0 +1,38 @@
+name: Build and test (.NET)
+
+on:
+  push:
+    branches-ignore:
+      - "gh-pages"
+    paths-ignore:
+      - "android/**"
+      - "docs/**"
+      - "**/*.md"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dotnet-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build the app
+        run: dotnet build CarCareTracker.csproj --configuration Release
+
+      - name: Run the unit tests
+        run: dotnet test tests/CarCareTracker.Tests/CarCareTracker.Tests.csproj --configuration Release --logger "console;verbosity=normal"

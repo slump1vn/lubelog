@@ -4,6 +4,7 @@ using CarCareTracker.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.JsonWebTokens;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -247,7 +248,7 @@ namespace CarCareTracker.Controllers
                                     };
                                     var serializedCookie = JsonSerializer.Serialize(authCookie);
                                     var encryptedCookie = _dataProtector.Protect(serializedCookie);
-                                    Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, new CookieOptions { Expires = new DateTimeOffset(authCookie.ExpiresOn) });
+                                    Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, LoginSecurity.CookieOptions(Request, authCookie.ExpiresOn));
                                     if (!string.IsNullOrWhiteSpace(storedRedirectURL))
                                     {
                                         try
@@ -473,6 +474,7 @@ namespace CarCareTracker.Controllers
             }
             return View(results);
         }
+        [EnableRateLimiting(LoginSecurity.RateLimitPolicy)]
         [HttpPost]
         public IActionResult Login(LoginModel credentials)
         {
@@ -494,7 +496,7 @@ namespace CarCareTracker.Controllers
                     };
                     var serializedCookie = JsonSerializer.Serialize(authCookie);
                     var encryptedCookie = _dataProtector.Protect(serializedCookie);
-                    Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, new CookieOptions { Expires = new DateTimeOffset(authCookie.ExpiresOn) });
+                    Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, LoginSecurity.CookieOptions(Request, authCookie.ExpiresOn));
                     return Json(OperationResponse.Succeed());
                 }
                 else
@@ -540,17 +542,19 @@ namespace CarCareTracker.Controllers
                     };
                     var serializedCookie = JsonSerializer.Serialize(authCookie);
                     var encryptedCookie = _dataProtector.Protect(serializedCookie);
-                    Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, new CookieOptions { Expires = new DateTimeOffset(authCookie.ExpiresOn) });
+                    Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, LoginSecurity.CookieOptions(Request, authCookie.ExpiresOn));
                 }
             }
             return Json(result);
         }
+        [EnableRateLimiting(LoginSecurity.RateLimitPolicy)]
         [HttpPost]
         public async Task<IActionResult> RequestResetPassword(LoginModel credentials)
         {
             var result = await _loginLogic.RequestResetPassword(credentials);
             return Json(result);
         }
+        [EnableRateLimiting(LoginSecurity.RateLimitPolicy)]
         [HttpPost]
         public IActionResult PerformPasswordReset(LoginModel credentials)
         {
@@ -582,7 +586,7 @@ namespace CarCareTracker.Controllers
                 //destroy any login cookies.
                 if (result)
                 {
-                    Response.Cookies.Delete(StaticHelper.LoginCookieName);
+                    Response.Cookies.Delete(StaticHelper.LoginCookieName, LoginSecurity.CookieOptions(Request, null));
                 }
                 return Json(result);
             }
@@ -596,7 +600,7 @@ namespace CarCareTracker.Controllers
         [HttpPost]
         public IActionResult LogOut()
         {
-            Response.Cookies.Delete(StaticHelper.LoginCookieName);
+            Response.Cookies.Delete(StaticHelper.LoginCookieName, LoginSecurity.CookieOptions(Request, null));
             var remoteAuthConfig = _config.GetOpenIDConfig();
             if (remoteAuthConfig.DisableRegularLogin && !string.IsNullOrWhiteSpace(remoteAuthConfig.LogOutURL))
             {
