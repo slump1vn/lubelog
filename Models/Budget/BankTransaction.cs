@@ -43,8 +43,14 @@ namespace CarCareTracker.Models
         public long? SepayWebhookId { get; set; }
         /// <summary>SePay's API id (a UUID), when the transaction arrived by API sync.</summary>
         public string SepayApiId { get; set; } = string.Empty;
-        /// <summary>"webhook" or "api": how the transaction first reached the app.</summary>
+        /// <summary>"webhook", "api", "statement" (imported bank statement) or "manual" (entered by hand): how the transaction first reached the app.</summary>
         public string Source { get; set; } = string.Empty;
+        /// <summary>Spending category key or name, set by hand; empty when not classified.</summary>
+        public string Category { get; set; } = string.Empty;
+        /// <summary>Free note, set by hand.</summary>
+        public string Note { get; set; } = string.Empty;
+        /// <summary>Who entered a manual transaction or imported a statement row; 0 for bank data.</summary>
+        public int CreatedByUserId { get; set; }
         public DateTime ImportedAtUtc { get; set; }
     }
     /// <summary>Body SePay posts to the webhook URL.</summary>
@@ -123,6 +129,10 @@ namespace CarCareTracker.Models
         public DateOnly CycleStart { get; set; }
         public long CycleIn { get; set; }
         public long CycleOut { get; set; }
+        /// <summary>Part of CycleIn found only from the bank balance (not reported as a transaction).</summary>
+        public long CycleUnrecordedIn { get; set; }
+        /// <summary>Part of CycleOut found only from the bank balance (not reported as a transaction).</summary>
+        public long CycleUnrecordedOut { get; set; }
         public List<BankTransaction> Recent { get; set; } = new List<BankTransaction>();
     }
     public class BalancePoint

@@ -43,10 +43,18 @@
                 <div class="col-6 col-md-4">
                     <div class="text-muted small">@string.Format(T("Money in since {0}"), Model.CycleStart.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture))</div>
                     <div class="fs-4 text-success">@Money(Model.CycleIn)</div>
+                    @if (Model.CycleUnrecordedIn > 0)
+                    {
+                        <div class="small text-muted">@string.Format(T("incl. {0} found from the balance"), Money(Model.CycleUnrecordedIn))</div>
+                    }
                 </div>
                 <div class="col-6 col-md-4">
                     <div class="text-muted small">@string.Format(T("Money out since {0}"), Model.CycleStart.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture))</div>
                     <div class="fs-4 text-danger">@Money(Model.CycleOut)</div>
+                    @if (Model.CycleUnrecordedOut > 0)
+                    {
+                        <div class="small text-muted">@string.Format(T("incl. {0} found from the balance"), Money(Model.CycleUnrecordedOut))</div>
+                    }
                 </div>
             </div>
             <div class="small text-muted mt-2">

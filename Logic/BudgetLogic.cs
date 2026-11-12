@@ -19,29 +19,36 @@ namespace CarCareTracker.Logic
         private readonly IBudgetDataAccess _budgetData;
         private readonly IUserHouseholdDataAccess _householdData;
         private readonly IUserRecordDataAccess _userData;
-        public BudgetLogic(IBudgetDataAccess budgetData, IUserHouseholdDataAccess householdData, IUserRecordDataAccess userData)
+        private readonly bool _sharedHousehold;
+        public BudgetLogic(IBudgetDataAccess budgetData, IUserHouseholdDataAccess householdData, IUserRecordDataAccess userData, IConfiguration configuration)
         {
+            _sharedHousehold = CarCareTracker.Helper.StaticHelper.CheckConfigBoolean(configuration, HouseholdRules.SharedHouseholdSetting);
             _budgetData = budgetData;
             _householdData = householdData;
             _userData = userData;
         }
         /// <summary>
-        /// The household a user belongs to: the head's user id. A user who is a member of
-        /// another user's household uses that household (the lowest head id when there are
-        /// several); everyone else is the head of their own.
+        /// The household a user belongs to: the head's user id. With LUBELOGGER_SHARED_HOUSEHOLD on, everyone
+        /// shares the admin's household (-1). Otherwise a user who is a member of another user's household
+        /// uses that household (the lowest head id when there are several); everyone else is the head of their own.
         /// </summary>
         public int GetHouseholdId(int userId)
         {
-            var memberships = _householdData.GetUserHouseholdByChildUserId(userId);
-            if (memberships.Any())
+            if (_sharedHousehold)
             {
-                return memberships.Min(x => x.Id.ParentUserId);
+                return HouseholdRules.SharedHouseholdId;
             }
-            return userId;
+            return HouseholdRules.Resolve(userId, false, _householdData.GetUserHouseholdByChildUserId(userId).Select(x => x.Id.ParentUserId));
         }
         public List<(int UserId, string Name)> GetHouseholdMembers(int householdId)
         {
             var members = new List<(int UserId, string Name)> { (householdId, GetUserName(householdId)) };
+            if (_sharedHousehold && householdId == HouseholdRules.SharedHouseholdId)
+            {
+                //everyone who can sign in belongs to the family household.
+                members.AddRange(_userData.GetUsers().Where(x => x.Id > 0).OrderBy(x => x.Id).Select(x => (x.Id, string.IsNullOrWhiteSpace(x.UserName) ? x.Id.ToString() : x.UserName)));
+                return members;
+            }
             foreach (var member in _householdData.GetUserHouseholdByParentUserId(householdId).OrderBy(x => x.Id.ChildUserId))
             {
                 members.Add((member.Id.ChildUserId, GetUserName(member.Id.ChildUserId)));

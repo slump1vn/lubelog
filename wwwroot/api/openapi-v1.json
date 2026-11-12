@@ -121,6 +121,8 @@
           "days": { "type": "integer" },
           "moneyIn": { "type": "integer" },
           "moneyOut": { "type": "integer" },
+          "unrecordedIn": { "type": "integer", "description": "Part of moneyIn found only from the bank balance (no transaction reported)." },
+          "unrecordedOut": { "type": "integer", "description": "Part of moneyOut found only from the bank balance (no transaction reported), e.g. card payments SePay does not record." },
           "net": { "type": "integer" },
           "projectedOut": { "type": ["integer", "null"], "description": "Null in the first two days of the cycle." }
         }

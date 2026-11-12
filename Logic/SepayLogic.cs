@@ -110,12 +110,38 @@ namespace CarCareTracker.Logic
                     _logger.LogWarning("SePay webhook {Id} could not be read as a transaction; ignored.", payload.Id);
                     return WebhookResult.Accepted;
                 }
-                _transactionData.AddIfNew(transaction);
-                _logger.LogInformation("SePay webhook {Id} ({Direction}) received for household {HouseholdId}.", payload.Id, transaction.Direction, householdId);
+                var stored = StoreBankTransaction(transaction);
+                _logger.LogInformation("SePay webhook {Id} ({Direction}) received for household {HouseholdId}{Duplicate}.", payload.Id, transaction.Direction, householdId, stored ? "" : " (already recorded)");
             }
             return WebhookResult.Accepted;
         }
 
+        /// <summary>
+        /// Stores a transaction SePay reported, unless the same bank movement is already in the app from an
+        /// imported statement. A matching manual entry is replaced by the bank's line, keeping its category and note.
+        /// </summary>
+        private bool StoreBankTransaction(BankTransaction transaction)
+        {
+            var nearby = _transactionData.GetSince(transaction.HouseholdId, transaction.OccurredAtUtc.AddDays(-3))
+                .Where(x => x.OccurredAtUtc <= transaction.OccurredAtUtc.AddDays(3) && (x.Source == ReconciliationRules.SourceManual || x.Source == ReconciliationRules.SourceStatement))
+                .ToList();
+            var counterpart = StatementImportRules.FindCounterpart(transaction, nearby);
+            if (counterpart?.Source == ReconciliationRules.SourceStatement)
+            {
+                return false;
+            }
+            if (counterpart != null)
+            {
+                transaction.Category = counterpart.Category;
+                transaction.Note = counterpart.Note;
+            }
+            var added = _transactionData.AddIfNew(transaction);
+            if (added && counterpart != null)
+            {
+                _transactionData.Delete(transaction.HouseholdId, counterpart.Id);
+            }
+            return added;
+        }
         public async Task SyncAll(CancellationToken cancellationToken)
         {
             foreach (var profile in _budgetData.GetBudgetProfiles().Where(x => !string.IsNullOrEmpty(x.SharedAccount?.AccountNumber)))
@@ -149,7 +175,8 @@ namespace CarCareTracker.Logic
                     status.Error = "SePay does not list this account number";
                     return status;
                 }
-                var latest = _transactionData.GetRecent(householdId, 1).FirstOrDefault();
+                //manual entries and imported statements say nothing about what SePay already delivered.
+                var latest = _transactionData.GetRecent(householdId, 100).FirstOrDefault(x => x.Source == "api" || x.Source == "webhook");
                 //look back two days past the newest stored transaction: banks sometimes report late.
                 var fromUtc = latest == null ? DateTime.UtcNow.AddDays(-LookbackDays) : latest.OccurredAtUtc.AddDays(-2);
                 var from = SepayRules.ToVietnamTime(fromUtc).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
@@ -165,7 +192,7 @@ namespace CarCareTracker.Logic
                             continue;
                         }
                         var transaction = SepayRules.FromApi(item, householdId, DateTime.UtcNow);
-                        if (transaction != null && _transactionData.AddIfNew(transaction))
+                        if (transaction != null && StoreBankTransaction(transaction))
                         {
                             status.Added++;
                         }
@@ -224,13 +251,17 @@ namespace CarCareTracker.Logic
         {
             return _lastSync.TryGetValue(householdId, out var status) ? status : null;
         }
+        /// <summary>Start of the stored history read for balances and reconciliation.</summary>
+        public static readonly DateTime HistoryStartUtc = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
         public SharedAccountViewModel GetAccountView(int householdId)
         {
             var profile = _budgetData.GetBudgetProfile(householdId);
             var today = DateOnly.FromDateTime(SepayRules.ToVietnamTime(DateTime.UtcNow));
             var cycleStart = BudgetRules.GetCycleStart(today, profile?.CycleStartDay ?? 1);
-            var fromUtc = DateTime.SpecifyKind(cycleStart.ToDateTime(TimeOnly.MinValue) - SepayRules.VietnamOffset, DateTimeKind.Utc);
-            var totals = SepayRules.Totals(_transactionData.GetSince(householdId, fromUtc), cycleStart);
+            //the whole history: a gap at the start of the cycle needs the balance from before it.
+            var all = _transactionData.GetSince(householdId, HistoryStartUtc);
+            var totals = SepayRules.Totals(all, cycleStart);
+            var unrecorded = ReconciliationRules.UnrecordedTotals(ReconciliationRules.FindGaps(all), cycleStart);
             var recent = _transactionData.GetRecent(householdId, 30);
             return new SharedAccountViewModel
             {
@@ -241,8 +272,10 @@ namespace CarCareTracker.Logic
                 LastSync = GetLastSync(householdId),
                 Balance = recent.FirstOrDefault(x => x.Balance.HasValue)?.Balance,
                 CycleStart = cycleStart,
-                CycleIn = totals.In,
-                CycleOut = totals.Out,
+                CycleIn = totals.In + unrecorded.In,
+                CycleOut = totals.Out + unrecorded.Out,
+                CycleUnrecordedIn = unrecorded.In,
+                CycleUnrecordedOut = unrecorded.Out,
                 Recent = recent
             };
         }
@@ -264,7 +297,7 @@ namespace CarCareTracker.Logic
                 DayOfCycle = dayOfCycle,
                 DaysInCycle = daysInCycle,
                 ProjectedOut = DashboardRules.ProjectCycleOut(account.CycleOut, dayOfCycle, daysInCycle),
-                BalanceHistory = DashboardRules.GetDailyBalances(_transactionData.GetSince(householdId, fromUtc), account.Balance, account.CycleStart, today),
+                BalanceHistory = DashboardRules.GetDailyBalances(ReconciliationRules.WithGaps(_transactionData.GetSince(householdId, HistoryStartUtc)).Where(x => x.OccurredAtUtc >= fromUtc), account.Balance, account.CycleStart, today),
                 //the rest of this cycle plus the first days of the next, so the next payday always shows.
                 Upcoming = DashboardRules.GetUpcoming(profile, today, cycleEnd.AddDays(7))
             };

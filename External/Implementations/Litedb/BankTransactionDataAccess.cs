@@ -71,6 +71,21 @@ namespace CarCareTracker.External.Implementations
                 .Take(limit)
                 .ToList();
         }
+        public bool Delete(int householdId, int id)
+        {
+            lock (writeLock)
+            {
+                var table = GetTable();
+                var item = table.FindById(id);
+                if (item == null || item.HouseholdId != householdId)
+                {
+                    return false;
+                }
+                var deleted = table.Delete(id);
+                _liteDB.GetLiteDB().Checkpoint();
+                return deleted;
+            }
+        }
         public List<BankTransaction> GetSince(int householdId, DateTime fromUtc)
         {
             return GetTable().Query()

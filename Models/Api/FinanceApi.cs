@@ -30,6 +30,10 @@ namespace CarCareTracker.Models.Api
         public int Days { get; set; }
         public long MoneyIn { get; set; }
         public long MoneyOut { get; set; }
+        /// <summary>Part of MoneyIn found only from the bank balance, not reported as a transaction.</summary>
+        public long UnrecordedIn { get; set; }
+        /// <summary>Part of MoneyOut found only from the bank balance, not reported as a transaction.</summary>
+        public long UnrecordedOut { get; set; }
         public long Net { get; set; }
         /// <summary>Money out for the whole cycle at the pace so far; null in the first two days.</summary>
         public long? ProjectedOut { get; set; }

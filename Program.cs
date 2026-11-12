@@ -129,6 +129,7 @@ builder.Services.AddSingleton<IMaintenanceLogic, MaintenanceLogic>();
 builder.Services.AddSingleton<IAiLogic, AiLogic>();
 builder.Services.AddSingleton<IBudgetLogic, BudgetLogic>();
 builder.Services.AddSingleton<ISepayLogic, SepayLogic>();
+builder.Services.AddSingleton<IReconciliationLogic, ReconciliationLogic>();
 //pulls the joint account from SePay when LUBELOGGER_SEPAY_API_KEY is set; does nothing otherwise.
 builder.Services.AddHostedService<SepaySyncService>();
 

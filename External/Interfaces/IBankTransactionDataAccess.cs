@@ -15,5 +15,7 @@ namespace CarCareTracker.External.Interfaces
         /// booking time, then id). With no cursor, the newest page.
         /// </summary>
         List<BankTransaction> GetPage(int householdId, DateTime? beforeUtc, int beforeId, int limit);
+        /// <summary>Removes one transaction of the household. True when it existed.</summary>
+        bool Delete(int householdId, int id);
     }
 }

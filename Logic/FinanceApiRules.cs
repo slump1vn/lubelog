@@ -49,6 +49,8 @@ namespace CarCareTracker.Logic
                     Days = model.DaysInCycle,
                     MoneyIn = account.CycleIn,
                     MoneyOut = account.CycleOut,
+                    UnrecordedIn = account.CycleUnrecordedIn,
+                    UnrecordedOut = account.CycleUnrecordedOut,
                     Net = model.Net,
                     ProjectedOut = model.ProjectedOut
                 },
