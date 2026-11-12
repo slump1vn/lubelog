@@ -1,0 +1,173 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Sói & Thỏ – Family finance API",
+    "version": "1.0.0",
+    "description": "Read-only API v1 for the native apps. Sign in with OAuth 2.0 authorization code + PKCE (see /.well-known/oauth-authorization-server) and send the access token as `Authorization: Bearer ...`. Access tokens last 15 minutes; refresh tokens rotate on every use and must be stored in the Keychain. Dates are yyyy-MM-dd Vietnam calendar dates, times are UTC ISO 8601, money is whole VND. Errors are RFC 9457 problem details. Fields are only ever added in v1."
+  },
+  "servers": [{ "url": "/" }],
+  "security": [{ "oauth": [] }],
+  "paths": {
+    "/api/v1/me": {
+      "get": {
+        "summary": "Who is signed in",
+        "operationId": "getMe",
+        "responses": {
+          "200": { "description": "The user", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Me" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/finance/dashboard": {
+      "get": {
+        "summary": "Home screen of the joint account for the current budget cycle",
+        "operationId": "getDashboard",
+        "responses": {
+          "200": { "description": "Dashboard", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Dashboard" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/finance/transactions": {
+      "get": {
+        "summary": "Transactions of the joint account, newest first",
+        "operationId": "listTransactions",
+        "parameters": [
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 200, "default": 50 } },
+          { "name": "cursor", "in": "query", "description": "nextCursor of the previous page, unchanged.", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "One page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransactionPage" } } } },
+          "400": { "$ref": "#/components/responses/Problem" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/finance/budget": {
+      "get": {
+        "summary": "Household budget: paydays, funds, limits and debts",
+        "operationId": "getBudget",
+        "responses": {
+          "200": { "description": "Budget profile, same shape as the website uses", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "oauth": {
+        "type": "oauth2",
+        "description": "Public client `soitho-ios`, redirect `vn.digifusion.finance:/oauth/callback`, PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        "flows": {
+          "authorizationCode": {
+            "authorizationUrl": "/oauth/authorize",
+            "tokenUrl": "/oauth/token",
+            "refreshUrl": "/oauth/token",
+            "scopes": {}
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "No token, or the token expired, or the device was signed out. Refresh once; if that fails, sign in again.",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      },
+      "Problem": {
+        "description": "Error",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      }
+    },
+    "schemas": {
+      "Problem": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "detail": { "type": "string" }
+        }
+      },
+      "Me": {
+        "type": "object",
+        "required": ["id", "userName", "householdId", "isAdmin"],
+        "properties": {
+          "id": { "type": "integer" },
+          "userName": { "type": "string" },
+          "householdId": { "type": "integer" },
+          "isAdmin": { "type": "boolean" }
+        }
+      },
+      "Direction": { "type": "string", "enum": ["in", "out"] },
+      "Account": {
+        "type": "object",
+        "properties": {
+          "linked": { "type": "boolean" },
+          "bankName": { "type": "string" },
+          "maskedNumber": { "type": "string", "examples": ["•••• 6789"] },
+          "balance": { "type": ["integer", "null"] },
+          "lastSyncUtc": { "type": ["string", "null"], "format": "date-time" },
+          "lastSyncSucceeded": { "type": ["boolean", "null"] }
+        }
+      },
+      "Cycle": {
+        "type": "object",
+        "properties": {
+          "start": { "type": "string", "format": "date" },
+          "end": { "type": "string", "format": "date" },
+          "day": { "type": "integer" },
+          "days": { "type": "integer" },
+          "moneyIn": { "type": "integer" },
+          "moneyOut": { "type": "integer" },
+          "net": { "type": "integer" },
+          "projectedOut": { "type": ["integer", "null"], "description": "Null in the first two days of the cycle." }
+        }
+      },
+      "BalancePoint": {
+        "type": "object",
+        "properties": { "date": { "type": "string", "format": "date" }, "balance": { "type": "integer" } }
+      },
+      "Upcoming": {
+        "type": "object",
+        "properties": {
+          "date": { "type": "string", "format": "date" },
+          "name": { "type": "string" },
+          "amount": { "type": "integer" },
+          "direction": { "$ref": "#/components/schemas/Direction" }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "occurredAtUtc": { "type": "string", "format": "date-time" },
+          "direction": { "$ref": "#/components/schemas/Direction" },
+          "amount": { "type": "integer" },
+          "balance": { "type": ["integer", "null"] },
+          "content": { "type": "string" },
+          "reference": { "type": "string" }
+        }
+      },
+      "Dashboard": {
+        "type": "object",
+        "properties": {
+          "today": { "type": "string", "format": "date" },
+          "account": { "$ref": "#/components/schemas/Account" },
+          "cycle": { "$ref": "#/components/schemas/Cycle" },
+          "balanceHistory": { "type": "array", "items": { "$ref": "#/components/schemas/BalancePoint" } },
+          "upcoming": { "type": "array", "items": { "$ref": "#/components/schemas/Upcoming" } },
+          "recent": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } }
+        }
+      },
+      "TransactionPage": {
+        "type": "object",
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } },
+          "nextCursor": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

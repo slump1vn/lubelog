@@ -94,4 +94,9 @@ pass "logout ends the session on the server"
 for i in $(seq 1 12); do code="$(status -X POST "$BASE/Login/Login" --data-urlencode "userName=$USER_NAME" --data-urlencode "password=wrong$i")"; done
 [ "$code" = 429 ] || fail "no rate limit on sign-in (last answer $code)"
 pass "sign-in is rate limited"
+# 9. Discovery documents.
+curl -sf "$BASE/.well-known/oauth-authorization-server" | json 'd["code_challenge_methods_supported"]' | grep -q S256 || fail "OAuth metadata"
+curl -sf "$BASE/api/openapi-v1.json" | json 'd["openapi"]' | grep -q '^3\.1' || fail "OpenAPI file"
+[ "$(status "$BASE/.well-known/apple-app-site-association")" = 404 ] || fail "apple-app-site-association must be 404 while LUBELOGGER_IOS_APP_ID is unset"
+pass "OAuth metadata, OpenAPI and apple-app-site-association"
 echo "all checks passed"
