@@ -72,9 +72,10 @@ namespace CarCareTracker.Logic
             {
                 return WebhookResult.Disabled;
             }
-            if (!SepayRules.VerifySignature(WebhookSecret, timestampHeader, signatureHeader, rawBody, DateTimeOffset.UtcNow.ToUnixTimeSeconds()))
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            if (!SepayRules.VerifySignature(WebhookSecret, timestampHeader, signatureHeader, rawBody, now))
             {
-                _logger.LogWarning("SePay webhook refused: missing or invalid signature.");
+                _logger.LogWarning("SePay webhook refused: missing or invalid signature ({Reason}).", SepayRules.DiagnoseSignatureFailure(WebhookSecret, timestampHeader, signatureHeader, rawBody, now));
                 return WebhookResult.Unauthorized;
             }
             SepayWebhookPayload? payload;

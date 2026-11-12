@@ -16,6 +16,27 @@ namespace CarCareTracker.Tests
         private static SepayWebhookPayload Payload() => JsonSerializer.Deserialize<SepayWebhookPayload>(WebhookBody)!;
 
         [Fact]
+        public void DiagnosisNamesTheMismatchWithoutLeakingSecrets()
+        {
+            const string sent = "{\"content\": \"Chuyển tiền https://a.vn/x\"}";
+            const string escaped = "{\"content\": \"Chuy\\u1ec3n ti\\u1ec1n https:\\/\\/a.vn\\/x\"}";
+            long timestamp = 1_800_000_000;
+            //a sender that signs the escaped JSON but sends the readable one.
+            var signature = SepayRules.Sign(Secret, timestamp, Encoding.UTF8.GetBytes(escaped));
+            var body = Encoding.UTF8.GetBytes(sent);
+            Assert.False(SepayRules.VerifySignature(Secret, timestamp.ToString(), signature, body, timestamp));
+            var reason = SepayRules.DiagnoseSignatureFailure(Secret, timestamp.ToString(), signature, body, timestamp + 2);
+            Assert.Contains("clock skew 2 s", reason);
+            Assert.Contains("non-ASCII and slashes escaped with secret", reason);
+            Assert.DoesNotContain(Secret, reason);
+            Assert.DoesNotContain(signature[7..], reason);
+            Assert.DoesNotContain("Chuy", reason);
+            //milliseconds are read as seconds for the skew.
+            Assert.Contains("clock skew 0 s", SepayRules.DiagnoseSignatureFailure(Secret, (timestamp * 1000).ToString(), "sha256=00", body, timestamp));
+            Assert.StartsWith("missing header", SepayRules.DiagnoseSignatureFailure(Secret, null, signature, body, timestamp));
+        }
+
+        [Fact]
         public void AcceptsSignatureMadeTheWaySepayMakesIt()
         {
             var body = Encoding.UTF8.GetBytes(WebhookBody);
