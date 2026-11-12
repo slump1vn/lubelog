@@ -259,4 +259,17 @@ app.MapGet("/.well-known/assetlinks.json", (IConfiguration config) =>
     });
 });
 
+//apple-app-site-association: ties the iPhone app (ios/) to this site, so it can use the passwords and
+//passkeys saved for the site. Set LUBELOGGER_IOS_APP_ID to "TEAMID.bundle.id" (comma separated for several).
+//Apple fetches it through its CDN over HTTPS without redirects; it answers 404 while unset.
+app.MapGet("/.well-known/apple-app-site-association", (IConfiguration config) =>
+{
+    var appIds = IosAppLinks.ParseAppIds(config["LUBELOGGER_IOS_APP_ID"]);
+    if (!appIds.Any())
+    {
+        return Results.NotFound();
+    }
+    return Results.Json(new { webcredentials = new { apps = appIds } });
+});
+
 app.Run();

@@ -67,6 +67,15 @@ namespace CarCareTracker.External.Implementations
             return Query($"SELECT data FROM app.{tableName} WHERE householdId = @householdId ORDER BY occurredAt DESC, id DESC LIMIT @limit",
                 x => { x.AddWithValue("householdId", householdId); x.AddWithValue("limit", limit); });
         }
+        public List<BankTransaction> GetPage(int householdId, DateTime? beforeUtc, int beforeId, int limit)
+        {
+            if (!beforeUtc.HasValue)
+            {
+                return GetRecent(householdId, limit);
+            }
+            return Query($"SELECT data FROM app.{tableName} WHERE householdId = @householdId AND (occurredAt, id) < (@before, @beforeId) ORDER BY occurredAt DESC, id DESC LIMIT @limit",
+                x => { x.AddWithValue("householdId", householdId); x.AddWithValue("before", DateTime.SpecifyKind(beforeUtc.Value, DateTimeKind.Utc)); x.AddWithValue("beforeId", beforeId); x.AddWithValue("limit", limit); });
+        }
         public List<BankTransaction> GetSince(int householdId, DateTime fromUtc)
         {
             return Query($"SELECT data FROM app.{tableName} WHERE householdId = @householdId AND occurredAt >= @from ORDER BY occurredAt, id",
