@@ -28,6 +28,7 @@ namespace CarCareTracker.Controllers
         private readonly ITranslationHelper _translationHelper;
         private readonly IMailHelper _mailHelper;
         private readonly IHttpClientFactory _httpClientFactory;
+        private readonly ISessionLogic _sessionLogic;
         public HomeController(ILogger<HomeController> logger,
             IVehicleDataAccess dataAccess,
             IUserLogic userLogic,
@@ -41,8 +42,10 @@ namespace CarCareTracker.Controllers
             IReminderHelper reminderHelper,
             ITranslationHelper translationHelper,
             IMailHelper mailHelper,
-            IHttpClientFactory httpClientFactory)
+            IHttpClientFactory httpClientFactory,
+            ISessionLogic sessionLogic)
         {
+            _sessionLogic = sessionLogic;
             _logger = logger;
             _dataAccess = dataAccess;
             _config = configuration;
@@ -262,7 +265,7 @@ namespace CarCareTracker.Controllers
                 var userId = GetUserID();
                 if (userId > 0)
                 {
-                    var result = _loginLogic.UpdateUserDetails(userId, userAccount);
+                    var result = _loginLogic.UpdateUserDetails(userId, userAccount, LoginSecurity.CurrentSessionId(User));
                     return Json(result);
                 }
                 return Json(OperationResponse.Failed());
@@ -324,6 +327,32 @@ namespace CarCareTracker.Controllers
         {
             var result = _userLogic.AddUserToHousehold(GetUserID(), username);
             return Json(result);
+        }
+        [Authorize(Roles = "CookieAuth")]
+        [HttpGet]
+        public IActionResult GetUserSessionsModal()
+        {
+            var result = _sessionLogic.GetActiveSessions(GetUserID(), LoginSecurity.CurrentSessionId(User));
+            return PartialView("_UserSessionsModal", result);
+        }
+        [Authorize(Roles = "CookieAuth")]
+        [HttpPost]
+        public IActionResult EndUserSession(int sessionId)
+        {
+            if (sessionId == LoginSecurity.CurrentSessionId(User))
+            {
+                //this device signs out with the regular log out button.
+                return Json(OperationResponse.Failed());
+            }
+            var result = _sessionLogic.EndSession(GetUserID(), sessionId);
+            return Json(OperationResponse.Conditional(result, string.Empty, string.Empty));
+        }
+        [Authorize(Roles = "CookieAuth")]
+        [HttpPost]
+        public IActionResult EndOtherUserSessions()
+        {
+            _sessionLogic.EndOtherSessions(GetUserID(), LoginSecurity.CurrentSessionId(User));
+            return Json(OperationResponse.Succeed());
         }
         [HttpGet]
         public IActionResult GetUserAPIKeys()

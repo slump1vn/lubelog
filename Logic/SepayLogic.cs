@@ -22,11 +22,12 @@ namespace CarCareTracker.Logic
         bool ApiConfigured { get; }
         bool WebhookConfigured { get; }
         int SyncMinutes { get; }
-        WebhookResult ReceiveWebhook(byte[] rawBody, string? timestampHeader, string? signatureHeader);
+        WebhookResult ReceiveWebhook(byte[] rawBody, string? timestampHeader, string? signatureHeader, string? contentType = null);
         Task<AccountSyncStatus> SyncHousehold(int householdId, CancellationToken cancellationToken);
         Task SyncAll(CancellationToken cancellationToken);
         AccountSyncStatus? GetLastSync(int householdId);
         SharedAccountViewModel GetAccountView(int householdId);
+        FinanceDashboardViewModel GetDashboard(int householdId);
     }
     /// <summary>
     /// Watches the household's joint account through SePay. Two ways in, both stored through
@@ -65,7 +66,7 @@ namespace CarCareTracker.Logic
         public bool WebhookConfigured => !string.IsNullOrEmpty(WebhookSecret);
         public int SyncMinutes => !ApiConfigured ? 0 : int.TryParse(_configuration["LUBELOGGER_SEPAY_SYNC_MINUTES"], out int minutes) ? Math.Max(minutes, 0) : 15;
 
-        public WebhookResult ReceiveWebhook(byte[] rawBody, string? timestampHeader, string? signatureHeader)
+        public WebhookResult ReceiveWebhook(byte[] rawBody, string? timestampHeader, string? signatureHeader, string? contentType = null)
         {
             if (!WebhookConfigured)
             {
@@ -73,7 +74,8 @@ namespace CarCareTracker.Logic
             }
             if (!SepayRules.VerifySignature(WebhookSecret, timestampHeader, signatureHeader, rawBody, DateTimeOffset.UtcNow.ToUnixTimeSeconds()))
             {
-                _logger.LogWarning("SePay webhook refused: missing or invalid signature.");
+                _logger.LogWarning("SePay webhook refused: missing or invalid signature. Diagnostics: {Diagnostics}",
+                    SepaySignatureDiagnostics.Describe(WebhookSecret, timestampHeader, signatureHeader, rawBody, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), contentType));
                 return WebhookResult.Unauthorized;
             }
             SepayWebhookPayload? payload;
@@ -109,6 +111,7 @@ namespace CarCareTracker.Logic
                     return WebhookResult.Accepted;
                 }
                 _transactionData.AddIfNew(transaction);
+                _logger.LogInformation("SePay webhook {Id} ({Direction}) received for household {HouseholdId}.", payload.Id, transaction.Direction, householdId);
             }
             return WebhookResult.Accepted;
         }
@@ -241,6 +244,29 @@ namespace CarCareTracker.Logic
                 CycleIn = totals.In,
                 CycleOut = totals.Out,
                 Recent = recent
+            };
+        }
+        public FinanceDashboardViewModel GetDashboard(int householdId)
+        {
+            var account = GetAccountView(householdId);
+            var profile = _budgetData.GetBudgetProfile(householdId);
+            var today = DateOnly.FromDateTime(SepayRules.ToVietnamTime(DateTime.UtcNow));
+            var cycleEnd = DashboardRules.GetCycleEnd(account.CycleStart, profile?.CycleStartDay ?? 1);
+            int dayOfCycle = today.DayNumber - account.CycleStart.DayNumber + 1;
+            int daysInCycle = cycleEnd.DayNumber - account.CycleStart.DayNumber + 1;
+            var fromUtc = DateTime.SpecifyKind(account.CycleStart.ToDateTime(TimeOnly.MinValue) - SepayRules.VietnamOffset, DateTimeKind.Utc);
+            return new FinanceDashboardViewModel
+            {
+                Account = account,
+                HasProfile = profile != null,
+                Today = today,
+                CycleEnd = cycleEnd,
+                DayOfCycle = dayOfCycle,
+                DaysInCycle = daysInCycle,
+                ProjectedOut = DashboardRules.ProjectCycleOut(account.CycleOut, dayOfCycle, daysInCycle),
+                BalanceHistory = DashboardRules.GetDailyBalances(_transactionData.GetSince(householdId, fromUtc), account.Balance, account.CycleStart, today),
+                //the rest of this cycle plus the first days of the next, so the next payday always shows.
+                Upcoming = DashboardRules.GetUpcoming(profile, today, cycleEnd.AddDays(7))
             };
         }
     }

@@ -16,7 +16,15 @@
         } else {
             errorToast(data.message);
         }
-    })
+    }).fail(showLoginRequestError);
+}
+// The server answers 429 after too many sign-in attempts from this address.
+function showLoginRequestError(xhr) {
+    if (xhr && xhr.status == 429) {
+        errorToast((xhr.responseJSON && xhr.responseJSON.message) || 'Too many attempts. Please wait a few minutes and try again.');
+    } else {
+        errorToast(genericErrorMessage());
+    }
 }
 function checkPersistLoginState() {
     let storedPersistLogin = localStorage.getItem('persistLogin');
@@ -33,7 +41,7 @@ function requestPasswordReset() {
         } else {
             errorToast(data.message);
         }
-    })
+    }).fail(showLoginRequestError);
 }
 function performPasswordReset() {
     let token = $("#inputToken").val();
@@ -46,7 +54,7 @@ function performPasswordReset() {
         } else {
             errorToast(data.message);
         }
-    });
+    }).fail(showLoginRequestError);
 }
 
 function remoteLogin() {

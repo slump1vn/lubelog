@@ -1,0 +1,169 @@
+@using CarCareTracker.Helper
+@using CarCareTracker.Logic
+@using System.Globalization
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model FinanceDashboardViewModel
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+    string T(string text) => translator.Translate(userLanguage, text);
+    string Money(long value) => value.ToString("N0", CultureInfo.CurrentCulture) + " ₫";
+    string Signed(long value) => (value > 0 ? "+" : value < 0 ? "-" : "") + Money(Math.Abs(value));
+    string Day(DateOnly value) => value.ToString("dd/MM", CultureInfo.InvariantCulture);
+    string Utc(DateTime value) => DateTime.SpecifyKind(value.ToUniversalTime(), DateTimeKind.Utc).ToString("o", CultureInfo.InvariantCulture);
+    var account = Model.Account;
+    var number = account.Account.AccountNumber ?? string.Empty;
+    var hasAccount = !string.IsNullOrEmpty(number);
+    //only the last digits on the home screen, the full number stays in the budget settings.
+    var maskedNumber = number.Length > 4 ? "•••• " + number[^4..] : number;
+    var cyclePercent = Model.DaysInCycle > 0 ? Math.Clamp(Model.DayOfCycle * 100 / Model.DaysInCycle, 0, 100) : 0;
+    const double chartWidth = 300, chartHeight = 80;
+    var history = Model.BalanceHistory;
+    var points = DashboardRules.SparklinePoints(history, chartWidth, chartHeight);
+}
+<div id="financeDashboard" class="finance-dashboard mx-auto" style="max-width:760px">
+    @if (!hasAccount)
+    {
+        <div class="card mt-2">
+            <div class="card-body text-center py-4">
+                <i class="bi bi-bank fs-1 text-muted"></i>
+                <p class="mt-2 mb-3">@T("Enter the shared account number under General and save to follow it here.")</p>
+                <button type="button" class="btn btn-primary" onclick="openBudgetSettings()"><i class="bi bi-piggy-bank me-1"></i>@T("Open budget settings")</button>
+            </div>
+        </div>
+    }
+    else
+    {
+        @if (!account.ApiConfigured && !account.WebhookConfigured)
+        {
+            <div class="alert alert-warning mt-2 mb-0">@T("SePay is not connected yet. Set LUBELOGGER_SEPAY_API_KEY (and optionally LUBELOGGER_SEPAY_WEBHOOK_SECRET) on the server.")</div>
+        }
+        <div class="card mt-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-muted small">
+                        <i class="bi bi-bank me-1"></i>@T("Shared account")
+                        <span class="ms-1">@account.Account.BankName @maskedNumber</span>
+                    </div>
+                    @if (account.ApiConfigured)
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="syncBudgetAccount(this)" title="@T("Sync now")" aria-label="@T("Sync now")"><i class="bi bi-arrow-repeat"></i></button>
+                    }
+                </div>
+                <div class="text-muted small mt-2">@T("Balance")</div>
+                <div class="display-6 fw-semibold text-break">@(account.Balance.HasValue ? Money(account.Balance.Value) : "---")</div>
+                @if (account.LastSync?.LastRunUtc != null)
+                {
+                    <div class="small @(account.LastSync.Succeeded ? "text-muted" : "text-danger")">
+                        @T("Last check"): <time class="budget-time" datetime="@Utc(account.LastSync.LastRunUtc.Value)">@account.LastSync.LastRunUtc.Value.ToString("u")</time>
+                        @if (!account.LastSync.Succeeded)
+                        {
+                            <span>(@T(account.LastSync.Error))</span>
+                        }
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="row g-2 mt-0">
+            <div class="col-6 col-md-4">
+                <div class="card h-100"><div class="card-body p-2 p-md-3">
+                    <div class="text-muted small"><i class="bi bi-arrow-down-left me-1"></i>@T("Money in this cycle")</div>
+                    <div class="fs-5 fw-semibold text-success text-break">@Money(account.CycleIn)</div>
+                </div></div>
+            </div>
+            <div class="col-6 col-md-4">
+                <div class="card h-100"><div class="card-body p-2 p-md-3">
+                    <div class="text-muted small"><i class="bi bi-arrow-up-right me-1"></i>@T("Money out this cycle")</div>
+                    <div class="fs-5 fw-semibold text-danger text-break">@Money(account.CycleOut)</div>
+                </div></div>
+            </div>
+            <div class="col-12 col-md-4">
+                <div class="card h-100"><div class="card-body p-2 p-md-3">
+                    <div class="text-muted small"><i class="bi bi-plus-slash-minus me-1"></i>@T("Net this cycle")</div>
+                    <div class="fs-5 fw-semibold text-break @(Model.Net >= 0 ? "text-success" : "text-danger")">@Signed(Model.Net)</div>
+                </div></div>
+            </div>
+        </div>
+
+        <div class="card mt-2">
+            <div class="card-body">
+                <div class="d-flex justify-content-between small">
+                    <span>@T("Budget cycle") @Day(account.CycleStart) – @Day(Model.CycleEnd)</span>
+                    <span class="text-muted">@string.Format(T("Day {0} of {1}"), Model.DayOfCycle, Model.DaysInCycle)</span>
+                </div>
+                <div class="progress mt-1" role="progressbar" aria-label="@T("Budget cycle")" aria-valuenow="@cyclePercent" aria-valuemin="0" aria-valuemax="100" style="height:6px">
+                    <div class="progress-bar" style="width:@cyclePercent%"></div>
+                </div>
+                @if (Model.ProjectedOut.HasValue)
+                {
+                    <div class="small text-muted mt-2">@string.Format(T("At this pace the account pays out about {0} this cycle."), Money(Model.ProjectedOut.Value))</div>
+                }
+                @if (history.Count > 1)
+                {
+                    var low = history.Min(x => x.Balance);
+                    var high = history.Max(x => x.Balance);
+                    <div class="mt-3">
+                        <div class="text-muted small mb-1">@T("Balance this cycle")</div>
+                        <svg viewBox="-2 -4 @(chartWidth + 4) @(chartHeight + 8)" preserveAspectRatio="none" class="w-100 text-primary" style="height:96px" role="img"
+                             aria-label="@string.Format(T("Balance from {0} to {1}, lowest {2}, highest {3}"), Day(history[0].Date), Day(history[^1].Date), Money(low), Money(high))">
+                            <polyline points="0,@chartHeight @points @chartWidth,@chartHeight" fill="currentColor" fill-opacity="0.12" stroke="none" />
+                            <polyline points="@points" fill="none" stroke="currentColor" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round" />
+                        </svg>
+                        <div class="d-flex justify-content-between small text-muted">
+                            <span>@Day(history[0].Date)</span>
+                            <span>@T("Lowest") @Money(low) · @T("Highest") @Money(high)</span>
+                            <span>@Day(history[^1].Date)</span>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @if (Model.Upcoming.Any())
+        {
+            <div class="card mt-2">
+                <div class="card-header"><i class="bi bi-calendar-event me-1"></i>@T("Coming up")</div>
+                <ul class="list-group list-group-flush">
+                    @foreach (var item in Model.Upcoming)
+                    {
+                        var days = item.Date.DayNumber - Model.Today.DayNumber;
+                        <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
+                            <div>
+                                <div>@item.Name</div>
+                                <div class="small text-muted">@Day(item.Date) · @(days == 0 ? T("Today") : string.Format(T("in {0} days"), days))</div>
+                            </div>
+                            <div class="text-nowrap fw-semibold @(item.Direction == TransferDirection.In ? "text-success" : "text-danger")">@(item.Direction == TransferDirection.In ? "+" : "-")@Money(item.Amount)</div>
+                        </li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <div class="card mt-2 mb-3">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ul me-1"></i>@T("Latest transactions")</span>
+                <button type="button" class="btn btn-sm btn-link p-0" onclick="openBudgetSettings()">@T("Budget")</button>
+            </div>
+            @if (account.Recent.Any())
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var transaction in account.Recent.Take(8))
+                    {
+                        <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+                            <div class="text-break small">
+                                <div>@transaction.Content</div>
+                                <time class="budget-time text-muted" datetime="@Utc(transaction.OccurredAtUtc)">@transaction.OccurredAtUtc.ToString("u")</time>
+                            </div>
+                            <div class="text-nowrap @(transaction.Direction == TransferDirection.In ? "text-success" : "text-danger")">@(transaction.Direction == TransferDirection.In ? "+" : "-")@Money(transaction.Amount)</div>
+                        </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <div class="card-body text-muted">@T("No transactions yet.")</div>
+            }
+        </div>
+    }
+</div>

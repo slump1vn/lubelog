@@ -1,0 +1,55 @@
+name: Build and test (.NET)
+
+on:
+  push:
+    branches-ignore:
+      - "gh-pages"
+    paths-ignore:
+      - "android/**"
+      - "docs/**"
+      - "**/*.md"
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dotnet-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build the app
+        run: dotnet build CarCareTracker.csproj --configuration Release
+
+      - name: Run the unit tests
+        run: dotnet test tests/CarCareTracker.Tests/CarCareTracker.Tests.csproj --configuration Release --logger "console;verbosity=normal"
+
+      - name: Start the app with a fresh data folder
+        run: |
+          ASPNETCORE_URLS=http://127.0.0.1:5080 nohup dotnet run --no-build --no-launch-profile --configuration Release --project CarCareTracker.csproj > app.log 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -sf http://127.0.0.1:5080/health > /dev/null; then echo "app is up"; exit 0; fi
+            sleep 1
+          done
+          cat app.log
+          exit 1
+
+      - name: Check sign-in, device sessions, OAuth and API v1 end to end
+        run: scripts/smoke-auth.sh http://127.0.0.1:5080
+
+      - name: Show the app log
+        if: always()
+        run: tail -n 200 app.log || true

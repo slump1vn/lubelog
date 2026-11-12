@@ -6,9 +6,12 @@ using CarCareTracker.Middleware;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.FileProviders;
 using System.Globalization;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -71,6 +74,7 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["POSTGRES_CONNECTION"])){
     builder.Services.AddSingleton<IApiKeyRecordDataAccess, PGApiKeyRecordDataAccess>();
     builder.Services.AddSingleton<IBudgetDataAccess, PGBudgetDataAccess>();
     builder.Services.AddSingleton<IBankTransactionDataAccess, PGBankTransactionDataAccess>();
+    builder.Services.AddSingleton<IUserSessionDataAccess, PGUserSessionDataAccess>();
     builder.Services.AddSingleton<IDBHealthCheck, PGDBHealthCheck>();
 }
 else
@@ -99,6 +103,7 @@ else
     builder.Services.AddSingleton<IApiKeyRecordDataAccess, ApiKeyRecordDataAccess>();
     builder.Services.AddSingleton<IBudgetDataAccess, BudgetDataAccess>();
     builder.Services.AddSingleton<IBankTransactionDataAccess, BankTransactionDataAccess>();
+    builder.Services.AddSingleton<IUserSessionDataAccess, UserSessionDataAccess>();
     builder.Services.AddSingleton<IDBHealthCheck, DBHealthCheck>();
 }
 
@@ -113,6 +118,8 @@ builder.Services.AddSingleton<ITranslationHelper, TranslationHelper>();
 builder.Services.AddSingleton<IMailHelper, MailHelper>();
 
 //configure logic
+builder.Services.AddSingleton<ISessionLogic, SessionLogic>();
+builder.Services.AddSingleton<IOAuthLogic, OAuthLogic>();
 builder.Services.AddSingleton<ILoginLogic, LoginLogic>();
 builder.Services.AddSingleton<IUserLogic, UserLogic>();
 builder.Services.AddSingleton<IOdometerLogic, OdometerLogic>();
@@ -156,6 +163,42 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartHeadersLengthLimit = int.MaxValue;
 });
 
+//compress CSS/JS/fonts (Brotli, then gzip). Pages and JSON stay uncompressed, see StaticAssetCaching.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = StaticAssetCaching.CompressedMimeTypes;
+});
+
+//slow down password guessing: a fixed number of sign-in and reset attempts per client address.
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.AddPolicy(LoginSecurity.RateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        LoginSecurity.ClientKey(context),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = LoginSecurity.AttemptsPerWindow,
+            Window = LoginSecurity.Window,
+            QueueLimit = 0
+        }));
+    options.AddPolicy(LoginSecurity.TokenRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        LoginSecurity.ClientKey(context),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = LoginSecurity.TokenRequestsPerWindow,
+            Window = LoginSecurity.Window,
+            QueueLimit = 0
+        }));
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        context.HttpContext.Response.Headers.RetryAfter = ((int)LoginSecurity.Window.TotalSeconds).ToString(CultureInfo.InvariantCulture);
+        await context.HttpContext.Response.WriteAsJsonAsync(new { success = false, message = "Too many attempts. Please wait a few minutes and try again." }, cancellationToken);
+    };
+});
+
 var app = builder.Build();
 
 //family defaults (equipment extra fields for batteries and tires), applied once.
@@ -168,8 +211,15 @@ if (StaticHelper.CheckConfigBoolean(builder.Configuration, "LUBELOGGER_FAMILY_DE
 app.UseExceptionHandler("/Error");
 app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
-//static file security
-app.UseStaticFiles();
+//static files: compressed, and cached by the browser according to StaticAssetCaching.
+app.UseResponseCompression();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.CacheControl = StaticAssetCaching.GetCacheControl(ctx.Context.Request.Path, ctx.Context.Request.Query);
+    }
+});
 
 //api middleware
 app.UseWhen(
@@ -178,6 +228,8 @@ app.UseWhen(
 );
 
 app.UseRouting();
+
+app.UseRateLimiter();
 
 app.UseAuthorization();
 
@@ -213,6 +265,19 @@ app.MapGet("/.well-known/assetlinks.json", (IConfiguration config) =>
             target = new { @namespace = "android_app", package_name = packageName.Trim(), sha256_cert_fingerprints = fingerprints }
         }
     });
+});
+
+//apple-app-site-association: ties the iPhone app (ios/) to this site, so it can use the passwords and
+//passkeys saved for the site. Set LUBELOGGER_IOS_APP_ID to "TEAMID.bundle.id" (comma separated for several).
+//Apple fetches it through its CDN over HTTPS without redirects; it answers 404 while unset.
+app.MapGet("/.well-known/apple-app-site-association", (IConfiguration config) =>
+{
+    var appIds = IosAppLinks.ParseAppIds(config["LUBELOGGER_IOS_APP_ID"]);
+    if (!appIds.Any())
+    {
+        return Results.NotFound();
+    }
+    return Results.Json(new { webcredentials = new { apps = appIds } });
 });
 
 app.Run();

@@ -26,7 +26,7 @@ namespace CarCareTracker.Controllers
             //the signature covers the exact bytes SePay sent, so read the body raw.
             using var buffer = new MemoryStream();
             await Request.Body.CopyToAsync(buffer, HttpContext.RequestAborted);
-            var result = _sepayLogic.ReceiveWebhook(buffer.ToArray(), Request.Headers["X-SePay-Timestamp"], Request.Headers["X-SePay-Signature"]);
+            var result = _sepayLogic.ReceiveWebhook(buffer.ToArray(), Request.Headers["X-SePay-Timestamp"], Request.Headers["X-SePay-Signature"], Request.ContentType);
             return result switch
             {
                 WebhookResult.Accepted => Ok(new { success = true }),
