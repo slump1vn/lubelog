@@ -83,7 +83,7 @@ namespace CarCareTracker.Middleware
                             {
                                 new(ClaimTypes.Name, splitString[0]),
                                 new(ClaimTypes.NameIdentifier, userData.Id.ToString()),
-                                new(ClaimTypes.Email, userData.EmailAddress),
+                                new(ClaimTypes.Email, userData.EmailAddress ?? string.Empty),
                                 new(ClaimTypes.Role, "APIAuth")
                             };
                             if (userData.IsAdmin)
@@ -131,7 +131,7 @@ namespace CarCareTracker.Middleware
                                 {
                                     new(ClaimTypes.Name, authCookie.UserData.UserName),
                                     new(ClaimTypes.NameIdentifier, authCookie.UserData.Id.ToString()),
-                                    new(ClaimTypes.Email, authCookie.UserData.EmailAddress),
+                                    new(ClaimTypes.Email, authCookie.UserData.EmailAddress ?? string.Empty),
                                     new(ClaimTypes.Role, "CookieAuth")
                                 };
                                 if (authCookie.UserData.IsAdmin)
@@ -164,7 +164,7 @@ namespace CarCareTracker.Middleware
                             {
                                 new(ClaimTypes.Name, userData.UserName),
                                 new(ClaimTypes.NameIdentifier, userData.Id.ToString()),
-                                new(ClaimTypes.Email, userData.EmailAddress),
+                                new(ClaimTypes.Email, userData.EmailAddress ?? string.Empty),
                                 new(ClaimTypes.Role, "APIAuth"),
                                 new(ClaimTypes.Role, "APIKeyAuth")
                             };
