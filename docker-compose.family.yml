@@ -53,6 +53,10 @@ services:
       # - LUBELOGGER_SEPAY_SYNC_MINUTES=15
       # Nhận giao dịch tức thì qua webhook (cần địa chỉ HTTPS công khai, ví dụ Cloudflare Tunnel --profile tunnel):
       - LUBELOGGER_SEPAY_WEBHOOK_SECRET=${SEPAY_WEBHOOK_SECRET:-}
+      # App Android (xem docs/ANDROID.md): vân tay SHA-256 khoá ký để app mở toàn màn hình.
+      - LUBELOGGER_ANDROID_CERT_SHA256=${ANDROID_CERT_SHA256:-}
+      # Chạy sau reverse proxy HTTPS (ví dụ finance.digifusion.vn): đọc X-Forwarded-Proto/For.
+      - ASPNETCORE_FORWARDEDHEADERS_ENABLED=${FORWARDED_HEADERS:-false}
     volumes:
       - data:/App/data
       - keys:/root/.aspnet/DataProtection-Keys
