@@ -27,6 +27,7 @@ namespace CarCareTracker.Logic
         Task SyncAll(CancellationToken cancellationToken);
         AccountSyncStatus? GetLastSync(int householdId);
         SharedAccountViewModel GetAccountView(int householdId);
+        FinanceDashboardViewModel GetDashboard(int householdId);
     }
     /// <summary>
     /// Watches the household's joint account through SePay. Two ways in, both stored through
@@ -241,6 +242,29 @@ namespace CarCareTracker.Logic
                 CycleIn = totals.In,
                 CycleOut = totals.Out,
                 Recent = recent
+            };
+        }
+        public FinanceDashboardViewModel GetDashboard(int householdId)
+        {
+            var account = GetAccountView(householdId);
+            var profile = _budgetData.GetBudgetProfile(householdId);
+            var today = DateOnly.FromDateTime(SepayRules.ToVietnamTime(DateTime.UtcNow));
+            var cycleEnd = DashboardRules.GetCycleEnd(account.CycleStart, profile?.CycleStartDay ?? 1);
+            int dayOfCycle = today.DayNumber - account.CycleStart.DayNumber + 1;
+            int daysInCycle = cycleEnd.DayNumber - account.CycleStart.DayNumber + 1;
+            var fromUtc = DateTime.SpecifyKind(account.CycleStart.ToDateTime(TimeOnly.MinValue) - SepayRules.VietnamOffset, DateTimeKind.Utc);
+            return new FinanceDashboardViewModel
+            {
+                Account = account,
+                HasProfile = profile != null,
+                Today = today,
+                CycleEnd = cycleEnd,
+                DayOfCycle = dayOfCycle,
+                DaysInCycle = daysInCycle,
+                ProjectedOut = DashboardRules.ProjectCycleOut(account.CycleOut, dayOfCycle, daysInCycle),
+                BalanceHistory = DashboardRules.GetDailyBalances(_transactionData.GetSince(householdId, fromUtc), account.Balance, account.CycleStart, today),
+                //the rest of this cycle plus the first days of the next, so the next payday always shows.
+                Upcoming = DashboardRules.GetUpcoming(profile, today, cycleEnd.AddDays(7))
             };
         }
     }

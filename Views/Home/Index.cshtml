@@ -44,6 +44,9 @@
                         <button class="nav-link resizable-nav-link" id="expense-tab" data-bs-toggle="tab" data-bs-target="#expense-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-cash-coin"></i><span class="ms-2">@translator.Translate(userLanguage, "Expenses")</span></button>
                     </li>
                     <li data-module="finance" class="nav-item" role="presentation">
+                        <button class="nav-link resizable-nav-link" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-speedometer2"></i><span class="ms-2">@translator.Translate(userLanguage, "Overview")</span></button>
+                    </li>
+                    <li data-module="finance" class="nav-item" role="presentation">
                         <button class="nav-link resizable-nav-link" id="budget-tab" data-bs-toggle="tab" data-bs-target="#budget-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-piggy-bank"></i><span class="ms-2">@translator.Translate(userLanguage, "Budget")</span></button>
                     </li>
                     <li data-module="shared" class="nav-item" role="presentation">
@@ -69,6 +72,9 @@
                             }
                             <li data-module="vehicles" class="nav-item text-truncate" role="presentation">
                                 <button class="nav-link resizable-nav-link" id="expense-tab" data-bs-toggle="tab" data-bs-target="#expense-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-cash-coin"></i><span class="ms-2">@translator.Translate(userLanguage, "Expenses")</span></button>
+                            </li>
+                            <li data-module="finance" class="nav-item text-truncate" role="presentation">
+                                <button class="nav-link resizable-nav-link" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-speedometer2"></i><span class="ms-2">@translator.Translate(userLanguage, "Overview")</span></button>
                             </li>
                             <li data-module="finance" class="nav-item text-truncate" role="presentation">
                                 <button class="nav-link resizable-nav-link" id="budget-tab" data-bs-toggle="tab" data-bs-target="#budget-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-piggy-bank"></i><span class="ms-2">@translator.Translate(userLanguage, "Budget")</span></button>
@@ -155,6 +161,9 @@
             <button class="nav-link flex-grow-1 text-start" id="expense-tab" data-bs-toggle="tab" data-bs-target="#expense-tab-pane" type="button" role="tab"><span class="ms-2 display-3"><i class="bi bi-cash-coin me-2"></i>@translator.Translate(userLanguage, "Expenses")</span></button>
         </li>
         <li data-module="finance" class="nav-item d-flex" role="presentation">
+            <button class="nav-link flex-grow-1 text-start" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview-tab-pane" type="button" role="tab"><span class="ms-2 display-3"><i class="bi bi-speedometer2 me-2"></i>@translator.Translate(userLanguage, "Overview")</span></button>
+        </li>
+        <li data-module="finance" class="nav-item d-flex" role="presentation">
             <button class="nav-link flex-grow-1 text-start" id="budget-tab" data-bs-toggle="tab" data-bs-target="#budget-tab-pane" type="button" role="tab"><span class="ms-2 display-3"><i class="bi bi-piggy-bank me-2"></i>@translator.Translate(userLanguage, "Budget")</span></button>
         </li>
         <li data-module="shared" class="nav-item d-flex" role="presentation">
@@ -205,6 +214,8 @@
         <div class="tab-pane fade" id="calendar-tab-pane" role="tabpanel" tabindex="0">
         </div>
         <div class="tab-pane fade" id="expense-tab-pane" role="tabpanel" tabindex="0">
+        </div>
+        <div class="tab-pane fade" id="overview-tab-pane" role="tabpanel" tabindex="0">
         </div>
         <div class="tab-pane fade" id="budget-tab-pane" role="tabpanel" tabindex="0">
         </div>

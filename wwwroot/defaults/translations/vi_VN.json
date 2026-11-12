@@ -863,5 +863,21 @@
 "Neither_username_nor_password_can_be_blank": "Tên đăng nhập và mật khẩu không được để trống",
 "Family_Finance": "Tài chính gia đình",
 "Vehicle_Maintenance": "Bảo trì xe cộ",
-"Functions": "Chức năng"
+"Functions": "Chức năng",
+"Overview": "Tổng quan",
+"Open_budget_settings": "Mở cài đặt ngân sách",
+"Money_in_this_cycle": "Tiền vào kỳ này",
+"Money_out_this_cycle": "Tiền ra kỳ này",
+"Net_this_cycle": "Chênh lệch kỳ này",
+"Budget_cycle": "Kỳ ngân sách",
+"Day_{0}_of_{1}": "Ngày {0}/{1}",
+"At_this_pace_the_account_pays_out_about_{0}_this_cycle.": "Nếu chi đều như hiện nay, cả kỳ tài khoản sẽ chi khoảng {0}.",
+"Balance_this_cycle": "Số dư trong kỳ",
+"Balance_from_{0}_to_{1},_lowest_{2},_highest_{3}": "Số dư từ {0} đến {1}, thấp nhất {2}, cao nhất {3}",
+"Lowest": "Thấp nhất",
+"Highest": "Cao nhất",
+"Coming_up": "Sắp tới",
+"Today": "Hôm nay",
+"in_{0}_days": "còn {0} ngày",
+"Latest_transactions": "Giao dịch gần đây"
 }

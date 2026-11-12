@@ -71,6 +71,13 @@ namespace CarCareTracker.Controllers
             }
             return Json(OperationResponse.Succeed(_translator.Translate(UserLanguage, "Budget saved")));
         }
+        /// <summary>Home dashboard: how the joint account is doing in the current budget cycle.</summary>
+        [HttpGet]
+        public IActionResult Dashboard()
+        {
+            var householdId = _budgetLogic.GetHouseholdId(GetUserID());
+            return PartialView("_Dashboard", _sepayLogic.GetDashboard(householdId));
+        }
         /// <summary>The joint account card: balance, money in and out this cycle, latest transactions.</summary>
         [HttpGet]
         public IActionResult Account()

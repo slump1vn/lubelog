@@ -53,6 +53,9 @@ function bindTabEvent() {
             case "expense-tab":
                 loadHouseholdExpenses(0);
                 break;
+            case "overview-tab":
+                loadFinanceDashboard();
+                break;
             case "budget-tab":
                 loadBudget(false);
                 break;
@@ -82,6 +85,9 @@ function bindTabEvent() {
                     break;
                 case "expense-tab":
                     $("#expense-tab-pane").html("");
+                    break;
+                case "overview-tab":
+                    $("#overview-tab-pane").html("");
                     break;
                 case "budget-tab":
                     $("#budget-tab-pane").html("");
@@ -901,7 +907,7 @@ function generateTokenForUser() {
     });
 }
 //the app has two top-level functions; each shows its own tabs, tabs marked "shared" show in both.
-const appModuleDefaultTabs = { finance: 'budget', vehicles: 'garage' };
+const appModuleDefaultTabs = { finance: 'overview', vehicles: 'garage' };
 function isAppModule(module) {
     return Object.prototype.hasOwnProperty.call(appModuleDefaultTabs, module);
 }

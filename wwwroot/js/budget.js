@@ -229,17 +229,41 @@ function saveBudget() {
         }
     });
 }
+// Times come from the server in UTC; show them in the phone's own time zone.
+function showBudgetTimes(container) {
+    $(container).find(".budget-time").each(function () {
+        var time = new Date($(this).attr('datetime'));
+        if (!isNaN(time)) {
+            $(this).text(time.toLocaleString());
+        }
+    });
+}
 // Joint account card (SePay): balance, money in and out this cycle, latest transactions.
 function loadBudgetAccount() {
     $.get('/Budget/Account', function (data) {
         $("#budgetAccount").html(data);
-        $("#budgetAccount .budget-time").each(function () {
-            var time = new Date($(this).attr('datetime'));
-            if (!isNaN(time)) {
-                $(this).text(time.toLocaleString());
-            }
-        });
+        showBudgetTimes("#budgetAccount");
     });
+}
+// Home dashboard of the joint account (the default screen of Family Finance).
+function loadFinanceDashboard() {
+    $.get('/Budget/Dashboard', function (data) {
+        if (data) {
+            $("#overview-tab-pane").html(data);
+            showBudgetTimes("#overview-tab-pane");
+        }
+    });
+}
+function openBudgetSettings() {
+    $("#budget-tab").first().tab('show');
+}
+function reloadBudgetAccountViews() {
+    if ($("#financeDashboard").length) {
+        loadFinanceDashboard();
+    }
+    if ($("#budgetAccount").length) {
+        loadBudgetAccount();
+    }
 }
 function syncBudgetAccount(button) {
     $(button).prop('disabled', true);
@@ -254,7 +278,7 @@ function syncBudgetAccount(button) {
             } else {
                 errorToast(result.message);
             }
-            loadBudgetAccount();
+            reloadBudgetAccountViews();
         },
         error: function () {
             errorToast(genericErrorMessage());
