@@ -9,14 +9,14 @@
     ViewData["Title"] = StaticHelper.AppTagline;
 }
 @section Scripts {
-    <script src="~/js/garage.js?v=@StaticHelper.VersionNumber"></script>
-    <script src="~/js/assistant.js?v=@StaticHelper.VersionNumber"></script>
-    <script src="~/js/budget.js?v=@StaticHelper.VersionNumber"></script>
-    <script src="~/js/settings.js?v=@StaticHelper.VersionNumber"></script>
-    <script src="~/js/supplyrecord.js?v=@StaticHelper.VersionNumber"></script>
-    <script src="~/lib/drawdown/drawdown.js"></script>
-    <script src="~/lib/qrcode/qrcode.js"></script>
-    <script src="~/lib/signalr/signalr.min.js"></script>
+    <script src="~/js/garage.js" asp-append-version="true"></script>
+    <script src="~/js/assistant.js" asp-append-version="true"></script>
+    <script src="~/js/budget.js" asp-append-version="true"></script>
+    <script src="~/js/settings.js" asp-append-version="true"></script>
+    <script src="~/js/supplyrecord.js" asp-append-version="true"></script>
+    <script src="~/lib/drawdown/drawdown.js" asp-append-version="true"></script>
+    <script src="~/lib/qrcode/qrcode.js" asp-append-version="true"></script>
+    <script src="~/lib/signalr/signalr.min.js" asp-append-version="true"></script>
 }
 @section Nav {
     <div class="container-fluid lubelogger-navbar-container frosted hideOnPrint">

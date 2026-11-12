@@ -6,6 +6,7 @@ using CarCareTracker.Middleware;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http.Features;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.FileProviders;
 using System.Globalization;
@@ -156,6 +157,15 @@ builder.Services.Configure<FormOptions>(options =>
     options.MultipartHeadersLengthLimit = int.MaxValue;
 });
 
+//compress CSS/JS/fonts (Brotli, then gzip). Pages and JSON stay uncompressed, see StaticAssetCaching.
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+    options.Providers.Add<BrotliCompressionProvider>();
+    options.Providers.Add<GzipCompressionProvider>();
+    options.MimeTypes = StaticAssetCaching.CompressedMimeTypes;
+});
+
 var app = builder.Build();
 
 //family defaults (equipment extra fields for batteries and tires), applied once.
@@ -168,8 +178,15 @@ if (StaticHelper.CheckConfigBoolean(builder.Configuration, "LUBELOGGER_FAMILY_DE
 app.UseExceptionHandler("/Error");
 app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
-//static file security
-app.UseStaticFiles();
+//static files: compressed, and cached by the browser according to StaticAssetCaching.
+app.UseResponseCompression();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        ctx.Context.Response.Headers.CacheControl = StaticAssetCaching.GetCacheControl(ctx.Context.Request.Path, ctx.Context.Request.Query);
+    }
+});
 
 //api middleware
 app.UseWhen(
