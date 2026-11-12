@@ -30,18 +30,18 @@ namespace CarCareTracker.External.Implementations
                 if (!string.IsNullOrWhiteSpace(result))
                 {
                     return new ServerHealthCheck { 
-                        Name = "LubeLogger database connections health check", 
+                        Name = "Database connections health check", 
                         Status = "pass",
                         Success = true
                     };
                 } else
                 {
-                    return new ServerHealthCheck { Name = "LubeLogger database connections health check" };
+                    return new ServerHealthCheck { Name = "Database connections health check" };
                 }
             } catch (Exception ex)
             {
                 _logger.LogError(ex.Message);
-                return new ServerHealthCheck { Name = "LubeLogger database connections health check" };
+                return new ServerHealthCheck { Name = "Database connections health check" };
             }
         }
     }

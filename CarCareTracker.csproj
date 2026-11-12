@@ -25,4 +25,9 @@
     <EmbeddedResource Remove="tests/**" />
   </ItemGroup>
 
+  <!-- Ship the upstream MIT license notice with the published app. -->
+  <ItemGroup>
+    <None Include="LICENSE" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

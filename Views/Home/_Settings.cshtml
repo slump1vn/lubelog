@@ -344,26 +344,16 @@
     <hr />
     <div class="col-12 col-md-6">
         <div class="d-flex justify-content-center">
-            <img src="/defaults/lubelogger_logo.png" />
+            <img src="@StaticHelper.DefaultLogoPath" class="lubelogger-logo" alt="@StaticHelper.AppName" />
         </div>
         <div class="d-flex justify-content-center">
             <small class="text-body-secondary">@($"{translator.Translate(userLanguage, "Version")} {StaticHelper.VersionNumber}")</small>
         </div>
         <p class="lead">
-            Proudly developed in the rural town of Price, Utah by Hargata Softworks.
+            @translator.Translate(userLanguage, "A private, self-hosted app for tracking the household's money: spending, funds, budgets and the shared bank account.")
         </p>
         <p class="lead">
-            If you enjoyed using this app, please consider spreading the good word.<br />
-            If you want to support the development of this project, consider subscribing to <a class="link-body-emphasis link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover" href="https://www.patreon.com/LubeLogger" target="_blank">our Patreon</a> or make a <a class="link-body-emphasis link-offset-2 link-underline-opacity-25 link-underline-opacity-100-hover" href="https://docs.lubelogger.com/Misc/Funding/#anonymous-donation-via-stripe" target="_blank">donation</a>
-        </p>
-        <div class="d-flex justify-content-center">
-            <h6 class="display-7 mt-2">Hometown Shoutout</h6>
-        </div>
-        <p class="lead">
-            Do you work remotely and are looking for a new place to call home? Consider looking into the rural Eastern Utah town of Price. Price and Carbon County
-            has experienced pronounced decline in both population and economic activity within the past decade whereas the rest of the state experienced exponential growth.
-            It is conveniently located in between Salt Lake City and Moab Utah. Amenities are relatively complete in terms of big box stores and high speed fiber Internet.
-            Price and its surrounding towns as a whole could really benefit from in-migration. Thank you!
+            @translator.Translate(userLanguage, "Your data stays on your own server and is never shared with third parties.")
         </p>
     </div>
     <div class="col-12 col-md-6">
@@ -371,7 +361,7 @@
             <h6 class="display-7 mt-2">Open Source Dependencies</h6>
         </div>
         <p class="lead">
-            LubeLogger utilizes open-source dependencies to serve you the best possible user experience, those dependencies are:
+            @translator.Translate(userLanguage, "This app is built on the following open-source software:")
         </p>
         <ul class="list-group">
             <li class="list-group-item">Bootstrap</li>
@@ -388,7 +378,6 @@
         </ul>
     </div>
 </div>
-<div class="row" id="sponsorsContainer"></div>
 <div class="modal fade" data-bs-focus="false" id="extraFieldModal" tabindex="-1" role="dialog" aria-hidden="true" @StaticHelper.GetStaticModalAttribute(Model.UserConfig.EnablePersistentDialog)>
     <div class="modal-dialog modal-lg" role="document">
         <div class="modal-content" id="extraFieldModalContent">
@@ -496,7 +485,6 @@
             });
         }
     }
-    loadSponsors();
     loadTooltips();
     renderSettingsSubTab();
 </script>

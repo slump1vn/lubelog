@@ -225,7 +225,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ],
                "equipmentRecordId":""
@@ -256,7 +256,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ],
                "equipmentRecordId":""
@@ -377,7 +377,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -408,7 +408,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -524,7 +524,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -555,7 +555,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -671,7 +671,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -702,7 +702,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -818,7 +818,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -849,7 +849,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -952,7 +952,7 @@
             "bodySample":[{
                "date":"2026-01-03",
                "partNumber":"LL-12345",
-               "partSupplier":"Hargata Softworks",
+               "partSupplier":"Example Supplier",
                "partQuantity":5,
                "description":"Test",
                "cost":123.45,
@@ -967,7 +967,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -985,7 +985,7 @@
                "id":1,
                "date":"2026-01-03",
                "partNumber":"LL-12345",
-               "partSupplier":"Hargata Softworks",
+               "partSupplier":"Example Supplier",
                "partQuantity":5,
                "description":"Test",
                "cost":123.45,
@@ -1000,7 +1000,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -1115,7 +1115,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -1145,7 +1145,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -1284,7 +1284,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             },
@@ -1308,7 +1308,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }
@@ -1343,7 +1343,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             },
@@ -1368,7 +1368,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }
@@ -1576,7 +1576,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -1605,7 +1605,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -1699,7 +1699,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -1728,7 +1728,7 @@
                "files":[
                   {
                      "name":"Attachment Example",
-                     "location":"https://lubelogger.com"
+                     "location":"https://example.com"
                   }
                ]
             }]
@@ -1789,7 +1789,7 @@
          },
          {
             "path":"/api/info",
-            "description":"Gets server information for LubeLogger instance",
+            "description":"Gets server information for this server",
             "methodType":0,
             "queryParams":[
 
@@ -1797,7 +1797,7 @@
          },
          {
             "path":"/api/version",
-            "description":"Gets current version for LubeLogger instance",
+            "description":"Gets current version for this server",
             "methodType":0,
             "queryParams":[
                {

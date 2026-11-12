@@ -144,7 +144,7 @@ function uploadTheme(event) {
 function restoreBackup(event) {
     let formData = new FormData();
     formData.append("file", event.files[0]);
-    console.log('LubeLogger - DB Restoration Started');
+    console.log('DB Restoration Started');
     sloader.show();
     $.ajax({
         url: "/Files/HandleFileUpload",
@@ -158,28 +158,22 @@ function restoreBackup(event) {
             $.post('/Files/RestoreBackup', { fileName: response }, function (data) {
                 sloader.hide();
                 if (data) {
-                    console.log('LubeLogger - DB Restoration Completed');
+                    console.log('DB Restoration Completed');
                     successToast("Backup Restored");
                     setTimeout(function () { window.location.href = '/Home/Index' }, 500);
                 } else {
                     errorToast(genericErrorMessage());
-                    console.log('LubeLogger - DB Restoration Failed - Failed to process backup file.');
+                    console.log('DB Restoration Failed - Failed to process backup file.');
                 }
             });
         } else {
-            console.log('LubeLogger - DB Restoration Failed - Failed to upload backup file.');
+            console.log('DB Restoration Failed - Failed to upload backup file.');
         }
     }).fail(() => {
         sloader.hide();
-        console.log('LubeLogger - DB Restoration Failed - Request failed to reach backend, please check file size.');
+        console.log('DB Restoration Failed - Request failed to reach backend, please check file size.');
         errorToast("An error has occurred, please check the file size and try again later.");
     });
-}
-
-function loadSponsors() {
-    $.get('/Home/Sponsors', function (data) {
-        $("#sponsorsContainer").html(data);
-    })
 }
 
 function showTranslationEditor() {
@@ -463,7 +457,7 @@ function showCustomWidgets() {
         html: `
                <span>
                You are about to use the Custom Widgets Editor, this is a developer-focused feature that can lead to security vulnerabilities if you don't understand what you're doing.
-               <br />Zero support will be provided from the developer(s) of LubeLogger regarding Custom Widgets, Read the Documentation.
+               <br />Zero support will be provided from the developer(s) of this app regarding Custom Widgets, Read the Documentation.
                <br />By proceeding, you acknowledge that you are solely responsible for all consequences from utilizing the Custom Widgets Editor.
                <br />To proceed, enter 'acknowledge' into the text field below.
                </span>

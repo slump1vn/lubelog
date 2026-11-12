@@ -200,20 +200,6 @@ namespace CarCareTracker.Controllers
             };
             return PartialView("_Settings", viewModel);
         }
-        public async Task<IActionResult> Sponsors()
-        {
-            try
-            {
-                var httpClient = _httpClientFactory.CreateClient();
-                var sponsorsData = await httpClient.GetFromJsonAsync<Sponsors>(StaticHelper.SponsorsPath) ?? new Sponsors();
-                return PartialView("_Sponsors", sponsorsData);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Unable to retrieve sponsors: {ex.Message}");
-                return PartialView("_Sponsors", new Sponsors());
-            }
-        }
         [HttpPost]
         public IActionResult WriteToSettings(UserConfig userConfig)
         {
