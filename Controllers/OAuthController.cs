@@ -114,7 +114,7 @@ namespace CarCareTracker.Controllers
         [HttpPost("/oauth/token")]
         [AllowAnonymous]
         [IgnoreAntiforgeryToken]
-        [EnableRateLimiting(LoginSecurity.RateLimitPolicy)]
+        [EnableRateLimiting(LoginSecurity.TokenRateLimitPolicy)]
         public IActionResult Token(
             [FromForm(Name = "grant_type")] string? grantType,
             [FromForm(Name = "client_id")] string? clientId,

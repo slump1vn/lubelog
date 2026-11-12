@@ -16,7 +16,6 @@ namespace CarCareTracker.Controllers
     [ApiController]
     [Authorize]
     [Route("api/v1")]
-    [Produces("application/json")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     public class FinanceApiController : ControllerBase
     {

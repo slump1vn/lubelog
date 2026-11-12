@@ -184,6 +184,14 @@ builder.Services.AddRateLimiter(options =>
             Window = LoginSecurity.Window,
             QueueLimit = 0
         }));
+    options.AddPolicy(LoginSecurity.TokenRateLimitPolicy, context => RateLimitPartition.GetFixedWindowLimiter(
+        LoginSecurity.ClientKey(context),
+        _ => new FixedWindowRateLimiterOptions
+        {
+            PermitLimit = LoginSecurity.TokenRequestsPerWindow,
+            Window = LoginSecurity.Window,
+            QueueLimit = 0
+        }));
     options.OnRejected = async (context, cancellationToken) =>
     {
         context.HttpContext.Response.Headers.RetryAfter = ((int)LoginSecurity.Window.TotalSeconds).ToString(CultureInfo.InvariantCulture);

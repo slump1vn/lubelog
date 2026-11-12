@@ -15,6 +15,9 @@ namespace CarCareTracker.Helper
         /// <summary>Attempts allowed per client address in one window.</summary>
         public const int AttemptsPerWindow = 10;
         public static readonly TimeSpan Window = TimeSpan.FromMinutes(5);
+        /// <summary>Policy on the app's token endpoint: an app refreshes about every 15 minutes, so this is looser.</summary>
+        public const string TokenRateLimitPolicy = "oauth-token";
+        public const int TokenRequestsPerWindow = 30;
 
         /// <summary>
         /// Options for the login cookie: never readable from JavaScript, only sent over HTTPS when the
