@@ -850,5 +850,15 @@
 "A_private,_self-hosted_app_for_tracking_the_household's_money:_spending,_funds,_budgets_and_the_shared_bank_account.": "Ứng dụng riêng của gia đình, tự lưu trữ tại nhà, để theo dõi tiền nong: chi tiêu, các quỹ, ngân sách và tài khoản chung.",
 "Your_data_stays_on_your_own_server_and_is_never_shared_with_third_parties.": "Dữ liệu nằm trên máy chủ của gia đình và không chia sẻ cho bên thứ ba.",
 "This_app_is_built_on_the_following_open-source_software:": "Ứng dụng được xây dựng trên các phần mềm mã nguồn mở sau:",
-"Open_Source_Dependencies": "Phần mềm mã nguồn mở"
+"Open_Source_Dependencies": "Phần mềm mã nguồn mở",
+"optional": "không bắt buộc",
+"At_least_8_characters": "Ít nhất 8 ký tự",
+"Confirm_Password": "Nhập lại mật khẩu",
+"Passwords_do_not_match": "Hai mật khẩu không khớp",
+"User_created": "Đã tạo người dùng",
+"Password_must_be_at_least_8_characters": "Mật khẩu phải có ít nhất 8 ký tự",
+"Invalid_email_address": "Email không hợp lệ",
+"Username_already_taken": "Tên đăng nhập đã có người dùng",
+"A_user_with_that_email_already_exists": "Đã có người dùng với email này",
+"Neither_username_nor_password_can_be_blank": "Tên đăng nhập và mật khẩu không được để trống"
 }

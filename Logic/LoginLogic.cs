@@ -18,11 +18,10 @@ namespace CarCareTracker.Logic
         bool DeleteUser(int userId);
         OperationResponse RegisterOpenIdUser(LoginModel credentials);
         OperationResponse UpdateUserDetails(int userId, LoginModel credentials);
-        OperationResponse RegisterNewUser(LoginModel credentials);
+        OperationResponse CreateUserByAdmin(string userName, string emailAddress, string password, bool isAdmin);
         Task<OperationResponse> RequestResetPassword(LoginModel credentials);
         OperationResponse ResetPasswordByUser(LoginModel credentials);
         OperationResponse ResetUserPassword(LoginModel credentials);
-        Task<OperationResponse> SendRegistrationToken(LoginModel credentials);
         UserData ValidateUserCredentials(LoginModel credentials);
         UserData ValidateOpenIDUser(LoginModel credentials);
         UserData ValidateAPIKey(string apiKey);
@@ -158,57 +157,39 @@ namespace CarCareTracker.Logic
             }
         }
         //handles user registration
-        public OperationResponse RegisterNewUser(LoginModel credentials)
+        public const int MinimumPasswordLength = 8;
+        public OperationResponse CreateUserByAdmin(string userName, string emailAddress, string password, bool isAdmin)
         {
-            //validate their token.
-            var existingToken = _tokenData.GetTokenRecordByBody(credentials.Token);
-            if (existingToken.Id == default || existingToken.EmailAddress != credentials.EmailAddress)
-            {
-                return OperationResponse.Failed("Invalid Token");
-            }
-            //token is valid, check if username and password is acceptable and that username is unique.
-            if (string.IsNullOrWhiteSpace(credentials.EmailAddress) || string.IsNullOrWhiteSpace(credentials.UserName) || string.IsNullOrWhiteSpace(credentials.Password))
+            userName = (userName ?? string.Empty).Trim();
+            emailAddress = (emailAddress ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrEmpty(password))
             {
                 return OperationResponse.Failed("Neither username nor password can be blank");
             }
-            var existingUser = _userData.GetUserRecordByUserName(credentials.UserName);
-            if (existingUser.Id != default)
+            if (password.Length < MinimumPasswordLength)
+            {
+                return OperationResponse.Failed("Password must be at least 8 characters");
+            }
+            if (!string.IsNullOrWhiteSpace(emailAddress) && !System.Net.Mail.MailAddress.TryCreate(emailAddress, out _))
+            {
+                return OperationResponse.Failed("Invalid email address");
+            }
+            if (_userData.GetUserRecordByUserName(userName).Id != default)
             {
                 return OperationResponse.Failed("Username already taken");
             }
-            var existingUserWithEmail = _userData.GetUserRecordByEmailAddress(credentials.EmailAddress);
-            if (existingUserWithEmail.Id != default)
+            if (!string.IsNullOrWhiteSpace(emailAddress) && _userData.GetUserRecordByEmailAddress(emailAddress).Id != default)
             {
                 return OperationResponse.Failed("A user with that email already exists");
             }
-            //username is unique then we delete the token and create the user.
-            _tokenData.DeleteToken(existingToken.Id);
             var newUser = new UserData()
             {
-                UserName = credentials.UserName,
-                Password = StaticHelper.GetHash(credentials.Password),
-                EmailAddress = credentials.EmailAddress
+                UserName = userName,
+                Password = StaticHelper.GetHash(password),
+                EmailAddress = emailAddress,
+                IsAdmin = isAdmin
             };
-            var result = _userData.SaveUserRecord(newUser);
-            if (result)
-            {
-                return OperationResponse.Succeed("You will be redirected to the login page briefly.");
-            }
-            else
-            {
-                return OperationResponse.Failed();
-            }
-        }
-        public async Task<OperationResponse> SendRegistrationToken(LoginModel credentials)
-        {
-            if (_configHelper.GetServerOpenRegistration())
-            {
-                var response = await GenerateUserToken(credentials.EmailAddress, true);
-                return response;
-            } else
-            {
-                return OperationResponse.Failed("Open Registration Disabled");
-            }
+            return _userData.SaveUserRecord(newUser) ? OperationResponse.Succeed("User created") : OperationResponse.Failed();
         }
         /// <summary>
         /// Generates a token and notifies user via email so they can reset their password.

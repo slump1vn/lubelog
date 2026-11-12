@@ -74,24 +74,6 @@ namespace CarCareTracker.Controllers
             }
             return View(model: redirectURL);
         }
-        public IActionResult Registration(string token = "", string email = "")
-        {
-            if (_config.GetServerDisabledRegistration())
-            {
-                return RedirectToAction("Index");
-            }
-            var remoteAuthConfig = _config.GetOpenIDConfig();
-            if (remoteAuthConfig.DisableRegularLogin && !string.IsNullOrWhiteSpace(remoteAuthConfig.LogOutURL))
-            {
-                return RedirectToAction("Index");
-            }
-            var viewModel = new LoginModel
-            {
-                EmailAddress = string.IsNullOrWhiteSpace(email) ? string.Empty : email,
-                Token = string.IsNullOrWhiteSpace(token) ? string.Empty : token
-            };
-            return View(viewModel);
-        }
         public IActionResult ForgotPassword()
         {
             var remoteAuthConfig = _config.GetOpenIDConfig();
@@ -543,12 +525,6 @@ namespace CarCareTracker.Controllers
         }
 
         [HttpPost]
-        public IActionResult Register(LoginModel credentials)
-        {
-            var result = _loginLogic.RegisterNewUser(credentials);
-            return Json(result);
-        }
-        [HttpPost]
         public IActionResult RegisterOpenIdUser(LoginModel credentials)
         {
             var result = _loginLogic.RegisterOpenIdUser(credentials);
@@ -567,12 +543,6 @@ namespace CarCareTracker.Controllers
                     Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, new CookieOptions { Expires = new DateTimeOffset(authCookie.ExpiresOn) });
                 }
             }
-            return Json(result);
-        }
-        [HttpPost]
-        public async Task<IActionResult> SendRegistrationToken(LoginModel credentials)
-        {
-            var result = await _loginLogic.SendRegistrationToken(credentials);
             return Json(result);
         }
         [HttpPost]

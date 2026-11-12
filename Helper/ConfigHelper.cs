@@ -109,7 +109,8 @@ namespace CarCareTracker.Helper
         }
         public bool GetServerOpenRegistration()
         {
-            return CheckBool(CheckString("LUBELOGGER_OPEN_REGISTRATION"));
+            //self-registration is not offered: accounts are created by an administrator.
+            return false;
         }
         public int GetAuthCookieLifeSpan()
         {
@@ -221,8 +222,8 @@ namespace CarCareTracker.Helper
         }
         public bool GetServerDisabledRegistration()
         {
-            var registrationDisabled = CheckBool(CheckString(nameof(ServerConfig.DisableRegistration)));
-            return registrationDisabled;
+            //self-registration is not offered: accounts are created by an administrator.
+            return true;
         }
         public string GetServerPostgresConnection()
         {

@@ -12,11 +12,13 @@ namespace CarCareTracker.Controllers
         private ILoginLogic _loginLogic;
         private IUserLogic _userLogic;
         private IConfigHelper _configHelper;
-        public AdminController(ILoginLogic loginLogic, IUserLogic userLogic, IConfigHelper configHelper)
+        private ITranslationHelper _translator;
+        public AdminController(ILoginLogic loginLogic, IUserLogic userLogic, IConfigHelper configHelper, ITranslationHelper translator)
         {
             _loginLogic = loginLogic;
             _userLogic = userLogic;
             _configHelper = configHelper;
+            _translator = translator;
         }
         public IActionResult Index()
         {
@@ -37,31 +39,12 @@ namespace CarCareTracker.Controllers
             var viewModel = _loginLogic.GetAllUsers().OrderBy(x => x.Id).ToList();
             return PartialView("_Users", viewModel);
         }
-        public async Task<IActionResult> GenerateNewToken(string emailAddress, bool autoNotify)
+        [HttpPost]
+        public IActionResult CreateUser(string userName, string emailAddress, string password, bool isAdmin)
         {
-            if (emailAddress.Contains(","))
-            {
-                string[] emailAddresses = emailAddress.Split(',');
-                foreach(string emailAdd in emailAddresses)
-                {
-                    var trimmedEmail = emailAdd.Trim();
-                    if (!string.IsNullOrWhiteSpace(trimmedEmail))
-                    {
-                        var result = await _loginLogic.GenerateUserToken(emailAdd.Trim(), autoNotify);
-                        if (!result.Success)
-                        {
-                            //if fail, return prematurely
-                            return Json(result);
-                        }
-                    }
-                }
-                var successResponse = OperationResponse.Succeed("Token Generated!");
-                return Json(successResponse);
-            } else
-            {
-                var result = await _loginLogic.GenerateUserToken(emailAddress, autoNotify);
-                return Json(result);
-            }
+            var result = _loginLogic.CreateUserByAdmin(userName, emailAddress, password, isAdmin);
+            result.Message = _translator.Translate(_configHelper.GetUserConfig(User).UserLanguage, result.Message);
+            return Json(result);
         }
         [HttpPost]
         public IActionResult DeleteToken(int tokenId)
