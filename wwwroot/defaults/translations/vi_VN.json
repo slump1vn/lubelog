@@ -860,5 +860,8 @@
 "Invalid_email_address": "Email không hợp lệ",
 "Username_already_taken": "Tên đăng nhập đã có người dùng",
 "A_user_with_that_email_already_exists": "Đã có người dùng với email này",
-"Neither_username_nor_password_can_be_blank": "Tên đăng nhập và mật khẩu không được để trống"
+"Neither_username_nor_password_can_be_blank": "Tên đăng nhập và mật khẩu không được để trống",
+"Family_Finance": "Tài chính gia đình",
+"Vehicle_Maintenance": "Bảo trì xe cộ",
+"Functions": "Chức năng"
 }
