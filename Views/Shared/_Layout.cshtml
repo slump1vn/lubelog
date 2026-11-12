@@ -57,6 +57,11 @@
     <link rel="apple-touch-icon-precomposed" sizes="192x192" href="~/defaults/app_icon_192.png" />
     <link rel="apple-touch-startup-image" href="~/defaults/app_launch.png" />
     <link rel="manifest" href="~/manifest.json">
+    <script>
+        if ('serviceWorker' in navigator && window.isSecureContext) {
+            window.addEventListener('load', function () { navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(function () { }); });
+        }
+    </script>
     <script src="~/lib/jquery/dist/jquery.min.js"></script>
     <script src="~/js/shared.js?v=@StaticHelper.VersionNumber"></script>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>

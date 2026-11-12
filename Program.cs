@@ -188,4 +188,31 @@ app.MapControllerRoute(
 //signalr
 app.MapHub<EventHubLogic>("/api/ws");
 
+//Digital Asset Links: lets the Android app (android/) open this site full screen as a Trusted Web Activity.
+//Set LUBELOGGER_ANDROID_CERT_SHA256 to the signing certificate fingerprint(s), comma separated. Empty list when unset.
+app.MapGet("/.well-known/assetlinks.json", (IConfiguration config) =>
+{
+    var packageName = config["LUBELOGGER_ANDROID_PACKAGE"];
+    if (string.IsNullOrWhiteSpace(packageName))
+    {
+        packageName = "vn.digifusion.finance";
+    }
+    var fingerprints = (config["LUBELOGGER_ANDROID_CERT_SHA256"] ?? string.Empty)
+        .Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        .Select(x => x.ToUpperInvariant())
+        .ToArray();
+    if (!fingerprints.Any())
+    {
+        return Results.Json(Array.Empty<object>());
+    }
+    return Results.Json(new[]
+    {
+        new
+        {
+            relation = new[] { "delegate_permission/common.handle_all_urls" },
+            target = new { @namespace = "android_app", package_name = packageName.Trim(), sha256_cert_fingerprints = fingerprints }
+        }
+    });
+});
+
 app.Run();
