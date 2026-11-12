@@ -22,7 +22,7 @@ namespace CarCareTracker.Logic
         bool ApiConfigured { get; }
         bool WebhookConfigured { get; }
         int SyncMinutes { get; }
-        WebhookResult ReceiveWebhook(byte[] rawBody, string? timestampHeader, string? signatureHeader);
+        WebhookResult ReceiveWebhook(byte[] rawBody, string? timestampHeader, string? signatureHeader, string? contentType = null);
         Task<AccountSyncStatus> SyncHousehold(int householdId, CancellationToken cancellationToken);
         Task SyncAll(CancellationToken cancellationToken);
         AccountSyncStatus? GetLastSync(int householdId);
@@ -66,7 +66,7 @@ namespace CarCareTracker.Logic
         public bool WebhookConfigured => !string.IsNullOrEmpty(WebhookSecret);
         public int SyncMinutes => !ApiConfigured ? 0 : int.TryParse(_configuration["LUBELOGGER_SEPAY_SYNC_MINUTES"], out int minutes) ? Math.Max(minutes, 0) : 15;
 
-        public WebhookResult ReceiveWebhook(byte[] rawBody, string? timestampHeader, string? signatureHeader)
+        public WebhookResult ReceiveWebhook(byte[] rawBody, string? timestampHeader, string? signatureHeader, string? contentType = null)
         {
             if (!WebhookConfigured)
             {
@@ -74,7 +74,8 @@ namespace CarCareTracker.Logic
             }
             if (!SepayRules.VerifySignature(WebhookSecret, timestampHeader, signatureHeader, rawBody, DateTimeOffset.UtcNow.ToUnixTimeSeconds()))
             {
-                _logger.LogWarning("SePay webhook refused: missing or invalid signature.");
+                _logger.LogWarning("SePay webhook refused: missing or invalid signature. Diagnostics: {Diagnostics}",
+                    SepaySignatureDiagnostics.Describe(WebhookSecret, timestampHeader, signatureHeader, rawBody, DateTimeOffset.UtcNow.ToUnixTimeSeconds(), contentType));
                 return WebhookResult.Unauthorized;
             }
             SepayWebhookPayload? payload;
@@ -110,6 +111,7 @@ namespace CarCareTracker.Logic
                     return WebhookResult.Accepted;
                 }
                 _transactionData.AddIfNew(transaction);
+                _logger.LogInformation("SePay webhook {Id} ({Direction}) received for household {HouseholdId}.", payload.Id, transaction.Direction, householdId);
             }
             return WebhookResult.Accepted;
         }
