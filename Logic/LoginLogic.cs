@@ -17,7 +17,7 @@ namespace CarCareTracker.Logic
         bool DeleteUserToken(int tokenId);
         bool DeleteUser(int userId);
         OperationResponse RegisterOpenIdUser(LoginModel credentials);
-        OperationResponse UpdateUserDetails(int userId, LoginModel credentials);
+        OperationResponse UpdateUserDetails(int userId, LoginModel credentials, int? currentSessionId = null);
         OperationResponse CreateUserByAdmin(string userName, string emailAddress, string password, bool isAdmin);
         Task<OperationResponse> RequestResetPassword(LoginModel credentials);
         OperationResponse ResetPasswordByUser(LoginModel credentials);
@@ -43,14 +43,17 @@ namespace CarCareTracker.Logic
         private readonly IApiKeyRecordDataAccess _apiKeyData;
         private readonly IMailHelper _mailHelper;
         private readonly IConfigHelper _configHelper;
+        private readonly ISessionLogic _sessionLogic;
         private IMemoryCache _cache;
         public LoginLogic(IUserRecordDataAccess userData, 
             ITokenRecordDataAccess tokenData, 
             IApiKeyRecordDataAccess apiKeyData,
             IMailHelper mailHelper,
             IConfigHelper configHelper,
+            ISessionLogic sessionLogic,
             IMemoryCache memoryCache)
         {
+            _sessionLogic = sessionLogic;
             _userData = userData;
             _tokenData = tokenData;
             _apiKeyData = apiKeyData;
@@ -73,7 +76,7 @@ namespace CarCareTracker.Logic
                 return result.Id != 0;
             }
         }
-        public OperationResponse UpdateUserDetails(int userId, LoginModel credentials)
+        public OperationResponse UpdateUserDetails(int userId, LoginModel credentials, int? currentSessionId = null)
         {
             //get current user details
             var existingUser = _userData.GetUserRecordById(userId);
@@ -107,14 +110,21 @@ namespace CarCareTracker.Logic
                 }
                 existingUser.EmailAddress = credentials.EmailAddress;
             }
+            bool passwordChanged = false;
             if (!string.IsNullOrWhiteSpace(existingUser.Password) && !string.IsNullOrWhiteSpace(credentials.Password))
             {
                 //update password only for non OIDC users
                 existingUser.Password = PasswordHasher.Hash(credentials.Password);
+                passwordChanged = true;
             }
             //delete token
             _tokenData.DeleteToken(existingToken.Id);
             var result = _userData.SaveUserRecord(existingUser);
+            if (result && passwordChanged)
+            {
+                //a new password signs out every other device; this one stays signed in.
+                _sessionLogic.EndOtherSessions(existingUser.Id, currentSessionId);
+            }
             return OperationResponse.Conditional(result, "User Updated", string.Empty);
         }
         public OperationResponse RegisterOpenIdUser(LoginModel credentials)
@@ -236,6 +246,7 @@ namespace CarCareTracker.Logic
             _tokenData.DeleteToken(existingToken.Id);
             if (result)
             {
+                _sessionLogic.EndOtherSessions(existingUser.Id, null);
                 return OperationResponse.Succeed("Password resetted, you will be redirected to login page shortly.");
             } else
             {
@@ -344,6 +355,7 @@ namespace CarCareTracker.Logic
             var result = _userData.SaveUserRecord(existingUser);
             if (result)
             {
+                _sessionLogic.EndOtherSessions(existingUser.Id, null);
                 return OperationResponse.Succeed("Password Revoked");
             }
             else
@@ -362,6 +374,7 @@ namespace CarCareTracker.Logic
             var result = _userData.SaveUserRecord(existingUser);
             if (result)
             {
+                _sessionLogic.EndOtherSessions(existingUser.Id, null);
                 return OperationResponse.Succeed("Password Reset");
             }
             else
@@ -379,6 +392,11 @@ namespace CarCareTracker.Logic
             }
             user.IsAdmin = isAdmin;
             var result = _userData.SaveUserRecord(user);
+            if (result)
+            {
+                //the role is part of the login cookie, so the user signs in again to pick up the change.
+                _sessionLogic.EndOtherSessions(userId, null);
+            }
             return result;
         }
         public List<UserData> GetAllUsers()
@@ -463,6 +481,10 @@ namespace CarCareTracker.Logic
         public bool DeleteUser(int userId)
         {
             var result = _userData.DeleteUserRecord(userId);
+            if (result)
+            {
+                _sessionLogic.EndOtherSessions(userId, null);
+            }
             return result;
         }
         public OperationResponse ResetUserPassword(LoginModel credentials)
@@ -478,6 +500,7 @@ namespace CarCareTracker.Logic
             var result = _userData.SaveUserRecord(existingUser);
             if (result)
             {
+                _sessionLogic.EndOtherSessions(existingUser.Id, null);
                 return OperationResponse.Succeed(newPassword);
             }
             else

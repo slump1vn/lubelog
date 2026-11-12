@@ -74,6 +74,7 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["POSTGRES_CONNECTION"])){
     builder.Services.AddSingleton<IApiKeyRecordDataAccess, PGApiKeyRecordDataAccess>();
     builder.Services.AddSingleton<IBudgetDataAccess, PGBudgetDataAccess>();
     builder.Services.AddSingleton<IBankTransactionDataAccess, PGBankTransactionDataAccess>();
+    builder.Services.AddSingleton<IUserSessionDataAccess, PGUserSessionDataAccess>();
     builder.Services.AddSingleton<IDBHealthCheck, PGDBHealthCheck>();
 }
 else
@@ -102,6 +103,7 @@ else
     builder.Services.AddSingleton<IApiKeyRecordDataAccess, ApiKeyRecordDataAccess>();
     builder.Services.AddSingleton<IBudgetDataAccess, BudgetDataAccess>();
     builder.Services.AddSingleton<IBankTransactionDataAccess, BankTransactionDataAccess>();
+    builder.Services.AddSingleton<IUserSessionDataAccess, UserSessionDataAccess>();
     builder.Services.AddSingleton<IDBHealthCheck, DBHealthCheck>();
 }
 
@@ -116,6 +118,7 @@ builder.Services.AddSingleton<ITranslationHelper, TranslationHelper>();
 builder.Services.AddSingleton<IMailHelper, MailHelper>();
 
 //configure logic
+builder.Services.AddSingleton<ISessionLogic, SessionLogic>();
 builder.Services.AddSingleton<ILoginLogic, LoginLogic>();
 builder.Services.AddSingleton<IUserLogic, UserLogic>();
 builder.Services.AddSingleton<IOdometerLogic, OdometerLogic>();

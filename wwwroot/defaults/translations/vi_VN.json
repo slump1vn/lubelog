@@ -879,5 +879,13 @@
 "Coming_up": "Sắp tới",
 "Today": "Hôm nay",
 "in_{0}_days": "còn {0} ngày",
-"Latest_transactions": "Giao dịch gần đây"
+"Latest_transactions": "Giao dịch gần đây",
+"Signed-in_devices": "Thiết bị đang đăng nhập",
+"Each_device_where_you_signed_in_is_listed_here._Sign_out_any_device_you_do_not_recognise,_then_change_your_password.": "Mỗi thiết bị bạn đã đăng nhập đều hiện ở đây. Nếu thấy thiết bị lạ, hãy đăng xuất nó rồi đổi mật khẩu.",
+"Unknown_device": "Thiết bị không rõ",
+"This_device": "Thiết bị này",
+"Last_active": "Hoạt động gần nhất",
+"Signed_in": "Đăng nhập lúc",
+"Sign_out": "Đăng xuất",
+"Sign_out_all_other_devices": "Đăng xuất mọi thiết bị khác"
 }

@@ -737,6 +737,40 @@ function showUserApiKeyModal() {
     });
 }
 
+// Devices signed in to this account; each one can be signed out on its own.
+function showUserSessionsModalFromUserModal() {
+    $('#accountInformationModal').modal('hide');
+    showUserSessionsModal();
+}
+function showUserSessionsModal() {
+    $.get('/Home/GetUserSessionsModal', function (data) {
+        $('#userSessionsModalContent').html(data);
+        showBudgetTimes('#userSessionsModalContent', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        $('#userSessionsModal').modal('show');
+    });
+}
+function hideUserSessionsModal() {
+    $('#userSessionsModal').modal('hide');
+}
+function endUserSession(sessionId) {
+    $.post('/Home/EndUserSession', { sessionId: sessionId }, function (data) {
+        if (data.success) {
+            showUserSessionsModal();
+        } else {
+            errorToast(genericErrorMessage());
+        }
+    });
+}
+function endOtherUserSessions() {
+    $.post('/Home/EndOtherUserSessions', function (data) {
+        if (data.success) {
+            showUserSessionsModal();
+        } else {
+            errorToast(genericErrorMessage());
+        }
+    });
+}
+
 function hideUserApiKeyModal() {
     $('#userApiKeyModal').modal('hide');
 }

@@ -16,6 +16,7 @@ namespace CarCareTracker.Controllers
     {
         private IDataProtector _dataProtector;
         private ILoginLogic _loginLogic;
+        private ISessionLogic _sessionLogic;
         private IConfigHelper _config;
         private readonly ITranslationHelper _translator;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -24,6 +25,7 @@ namespace CarCareTracker.Controllers
             ILogger<LoginController> logger,
             IDataProtectionProvider securityProvider,
             ILoginLogic loginLogic,
+            ISessionLogic sessionLogic,
             IConfigHelper config,
             ITranslationHelper translator,
             IHttpClientFactory httpClientFactory
@@ -32,6 +34,7 @@ namespace CarCareTracker.Controllers
             _dataProtector = securityProvider.CreateProtector("login");
             _logger = logger;
             _loginLogic = loginLogic;
+            _sessionLogic = sessionLogic;
             _config = config;
             _translator = translator;
             _httpClientFactory = httpClientFactory;
@@ -241,14 +244,7 @@ namespace CarCareTracker.Controllers
                                 var userData = _loginLogic.ValidateOpenIDUser(new LoginModel() { EmailAddress = userEmailAddress });
                                 if (userData.Id != default)
                                 {
-                                    AuthCookie authCookie = new AuthCookie
-                                    {
-                                        UserData = userData,
-                                        ExpiresOn = DateTime.Now.AddDays(1)
-                                    };
-                                    var serializedCookie = JsonSerializer.Serialize(authCookie);
-                                    var encryptedCookie = _dataProtector.Protect(serializedCookie);
-                                    Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, LoginSecurity.CookieOptions(Request, authCookie.ExpiresOn));
+                                    SignIn(userData, 1);
                                     if (!string.IsNullOrWhiteSpace(storedRedirectURL))
                                     {
                                         try
@@ -489,14 +485,7 @@ namespace CarCareTracker.Controllers
                 var userData = _loginLogic.ValidateUserCredentials(credentials);
                 if (userData.Id != default)
                 {
-                    AuthCookie authCookie = new AuthCookie
-                    {
-                        UserData = userData,
-                        ExpiresOn = DateTime.Now.AddDays(credentials.IsPersistent ? _config.GetAuthCookieLifeSpan() : 1)
-                    };
-                    var serializedCookie = JsonSerializer.Serialize(authCookie);
-                    var encryptedCookie = _dataProtector.Protect(serializedCookie);
-                    Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, LoginSecurity.CookieOptions(Request, authCookie.ExpiresOn));
+                    SignIn(userData, credentials.IsPersistent ? _config.GetAuthCookieLifeSpan() : 1);
                     return Json(OperationResponse.Succeed());
                 }
                 else
@@ -535,14 +524,7 @@ namespace CarCareTracker.Controllers
                 var userData = _loginLogic.ValidateOpenIDUser(new LoginModel() { EmailAddress = credentials.EmailAddress });
                 if (userData.Id != default)
                 {
-                    AuthCookie authCookie = new AuthCookie
-                    {
-                        UserData = userData,
-                        ExpiresOn = DateTime.Now.AddDays(1)
-                    };
-                    var serializedCookie = JsonSerializer.Serialize(authCookie);
-                    var encryptedCookie = _dataProtector.Protect(serializedCookie);
-                    Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, LoginSecurity.CookieOptions(Request, authCookie.ExpiresOn));
+                    SignIn(userData, 1);
                 }
             }
             return Json(result);
@@ -568,6 +550,11 @@ namespace CarCareTracker.Controllers
             try
             {
                 var result = _loginLogic.CreateRootUserCredentials(credentials);
+                if (result)
+                {
+                    //new root credentials sign out the root account everywhere else.
+                    _sessionLogic.EndOtherSessions(-1, LoginSecurity.CurrentSessionId(User));
+                }
                 return Json(result);
             }
             catch (Exception ex)
@@ -600,6 +587,11 @@ namespace CarCareTracker.Controllers
         [HttpPost]
         public IActionResult LogOut()
         {
+            var sessionId = LoginSecurity.CurrentSessionId(User);
+            if (sessionId.HasValue)
+            {
+                _sessionLogic.EndSession(GetUserId(), sessionId.Value);
+            }
             Response.Cookies.Delete(StaticHelper.LoginCookieName, LoginSecurity.CookieOptions(Request, null));
             var remoteAuthConfig = _config.GetOpenIDConfig();
             if (remoteAuthConfig.DisableRegularLogin && !string.IsNullOrWhiteSpace(remoteAuthConfig.LogOutURL))
@@ -607,6 +599,28 @@ namespace CarCareTracker.Controllers
                 return Json(remoteAuthConfig.LogOutURL);
             }
             return Json("/Login");
+        }
+        /// <summary>
+        /// Starts a server-side session for this device and sets the login cookie that points to it.
+        /// </summary>
+        private void SignIn(UserData userData, int days)
+        {
+            var expiresUtc = DateTime.UtcNow.AddDays(days);
+            var (session, secret) = _sessionLogic.StartBrowserSession(userData.Id, expiresUtc, HttpContext);
+            AuthCookie authCookie = new AuthCookie
+            {
+                UserData = userData,
+                ExpiresOn = expiresUtc.ToLocalTime(),
+                SessionId = session.Id,
+                SessionSecret = secret
+            };
+            var serializedCookie = JsonSerializer.Serialize(authCookie);
+            var encryptedCookie = _dataProtector.Protect(serializedCookie);
+            Response.Cookies.Append(StaticHelper.LoginCookieName, encryptedCookie, LoginSecurity.CookieOptions(Request, authCookie.ExpiresOn));
+        }
+        private int GetUserId()
+        {
+            return int.TryParse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value, out int id) ? id : 0;
         }
     }
 }

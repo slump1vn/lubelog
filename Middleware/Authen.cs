@@ -16,6 +16,7 @@ namespace CarCareTracker.Middleware
         private IHttpContextAccessor _httpContext;
         private IDataProtector _dataProtector;
         private ILoginLogic _loginLogic;
+        private ISessionLogic _sessionLogic;
         private bool enableAuth;
         public Authen(
             IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -23,12 +24,14 @@ namespace CarCareTracker.Middleware
             ILoggerFactory logger,
             IConfiguration configuration,
             ILoginLogic loginLogic,
+            ISessionLogic sessionLogic,
             IDataProtectionProvider securityProvider,
             IHttpContextAccessor httpContext) : base(options, logger, encoder)
         {
             _httpContext = httpContext;
             _dataProtector = securityProvider.CreateProtector("login");
             _loginLogic = loginLogic;
+            _sessionLogic = sessionLogic;
             enableAuth = bool.Parse(configuration["EnableAuth"] ?? "false");
         }
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -66,8 +69,15 @@ namespace CarCareTracker.Middleware
                 else if (!string.IsNullOrWhiteSpace(request_header))
                 {
                     var cleanedHeader = request_header.ToString().Replace("Basic ", "").Trim();
-                    byte[] data = Convert.FromBase64String(cleanedHeader);
-                    string decodedString = Encoding.UTF8.GetString(data);
+                    string decodedString;
+                    try
+                    {
+                        decodedString = Encoding.UTF8.GetString(Convert.FromBase64String(cleanedHeader));
+                    }
+                    catch (FormatException)
+                    {
+                        return AuthenticateResult.Fail("Invalid credentials");
+                    }
                     var splitString = decodedString.Split(":");
                     if (splitString.Count() != 2)
                     {
@@ -125,6 +135,12 @@ namespace CarCareTracker.Middleware
                                 {
                                     return AuthenticateResult.Fail("Cookie points to non-existant user.");
                                 }
+                                //the cookie must belong to a session the server still knows, so that a device can be signed out.
+                                var session = _sessionLogic.GetActiveSession(authCookie.SessionId, authCookie.UserData.Id, authCookie.SessionSecret, _httpContext.HttpContext);
+                                if (session == null)
+                                {
+                                    return AuthenticateResult.Fail("Session ended.");
+                                }
                                 //validate if user is still valid
                                 var appIdentity = new ClaimsIdentity("Custom");
                                 var userIdentity = new List<Claim>
@@ -132,7 +148,8 @@ namespace CarCareTracker.Middleware
                                     new(ClaimTypes.Name, authCookie.UserData.UserName),
                                     new(ClaimTypes.NameIdentifier, authCookie.UserData.Id.ToString()),
                                     new(ClaimTypes.Email, authCookie.UserData.EmailAddress ?? string.Empty),
-                                    new(ClaimTypes.Role, "CookieAuth")
+                                    new(ClaimTypes.Role, "CookieAuth"),
+                                    new(LoginSecurity.SessionClaim, session.Id.ToString())
                                 };
                                 if (authCookie.UserData.IsAdmin)
                                 {

@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.Http;
+using System.Globalization;
+using System.Security.Claims;
 
 namespace CarCareTracker.Helper
 {
@@ -34,6 +36,16 @@ namespace CarCareTracker.Helper
                 options.Expires = new DateTimeOffset(expires.Value);
             }
             return options;
+        }
+
+        /// <summary>Claim that carries the id of the signed-in device's session.</summary>
+        public const string SessionClaim = "sid";
+
+        /// <summary>The session id of the signed-in user, or null for API keys, Basic auth and no login.</summary>
+        public static int? CurrentSessionId(ClaimsPrincipal? user)
+        {
+            var value = user?.FindFirst(SessionClaim)?.Value;
+            return int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out int id) ? id : null;
         }
 
         /// <summary>The address one rate limit bucket belongs to.</summary>
