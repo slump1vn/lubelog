@@ -887,5 +887,10 @@
 "Last_active": "Hoạt động gần nhất",
 "Signed_in": "Đăng nhập lúc",
 "Sign_out": "Đăng xuất",
-"Sign_out_all_other_devices": "Đăng xuất mọi thiết bị khác"
+"Sign_out_all_other_devices": "Đăng xuất mọi thiết bị khác",
+"Allow_app_sign-in": "Cho phép app đăng nhập",
+"{0}_wants_to_sign_in_to_your_account_{1}._It_will_see_the_same_family_finance_data_you_see_here.": "{0} muốn đăng nhập vào tài khoản {1}. App sẽ xem được cùng dữ liệu tài chính gia đình mà bạn thấy ở đây.",
+"The_app_never_sees_your_password._You_can_sign_it_out_at_any_time_under_Signed-in_devices.": "App không bao giờ biết mật khẩu của bạn. Bạn có thể đăng xuất app bất cứ lúc nào trong mục Thiết bị đang đăng nhập.",
+"Allow": "Cho phép",
+"This_app_is_not_allowed_to_sign_in_here.": "App này không được phép đăng nhập vào đây."
 }

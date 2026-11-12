@@ -7,7 +7,11 @@ namespace CarCareTracker.Logic
     public interface ISessionLogic
     {
         /// <summary>Records a new browser sign-in and returns it with the secret for the login cookie.</summary>
-        (UserSession Session, string Secret) StartBrowserSession(int userId, DateTime expiresUtc, HttpContext context);
+        (UserSession Session, string Secret) StartBrowserSession(UserData user, DateTime expiresUtc, HttpContext context);
+        /// <summary>Records a new app sign-in and returns it with the secret of its first refresh token.</summary>
+        (UserSession Session, string Secret) StartAppSession(UserData user, string clientId, string deviceName, DateTime expiresUtc, HttpContext context);
+        /// <summary>The session behind a Bearer access token, while it is active and belongs to the user.</summary>
+        UserSession? GetActiveTokenSession(int sessionId, int userId, HttpContext? context);
         /// <summary>The session when it exists, belongs to the user, matches the secret and has not ended.</summary>
         UserSession? GetActiveSession(int sessionId, int userId, string secret, HttpContext? context);
         /// <summary>Ends one session of the user. False when it is not theirs.</summary>
@@ -26,17 +30,32 @@ namespace CarCareTracker.Logic
             _sessionData = sessionData;
             _logger = logger;
         }
-        public (UserSession Session, string Secret) StartBrowserSession(int userId, DateTime expiresUtc, HttpContext context)
+        public (UserSession Session, string Secret) StartBrowserSession(UserData user, DateTime expiresUtc, HttpContext context)
+        {
+            return Start(user, SessionKind.Browser, string.Empty, SessionRules.DescribeDevice(context.Request.Headers.UserAgent.ToString()), expiresUtc, context);
+        }
+        public (UserSession Session, string Secret) StartAppSession(UserData user, string clientId, string deviceName, DateTime expiresUtc, HttpContext context)
+        {
+            return Start(user, SessionKind.App, clientId, deviceName, expiresUtc, context);
+        }
+        private (UserSession Session, string Secret) Start(UserData user, SessionKind kind, string clientId, string deviceName, DateTime expiresUtc, HttpContext context)
         {
             var now = DateTime.UtcNow;
             _sessionData.DeleteSessionsEndedBefore(now - SessionRules.KeepEnded);
             var secret = SessionRules.NewSecret();
             var session = new UserSession
             {
-                UserId = userId,
-                Kind = SessionKind.Browser,
-                SecretHash = SessionRules.Hash(secret),
-                DeviceName = SessionRules.DescribeDevice(context.Request.Headers.UserAgent.ToString()),
+                UserId = user.Id,
+                UserName = user.UserName,
+                EmailAddress = user.EmailAddress ?? string.Empty,
+                IsAdmin = user.IsAdmin,
+                IsRootUser = user.IsRootUser,
+                Kind = kind,
+                ClientId = clientId,
+                //an app session is reached by its refresh token, a browser session by its cookie secret.
+                SecretHash = kind == SessionKind.Browser ? SessionRules.Hash(secret) : string.Empty,
+                RefreshTokenHash = kind == SessionKind.App ? SessionRules.Hash(secret) : string.Empty,
+                DeviceName = deviceName,
                 LastAddress = LoginSecurity.ClientKey(context),
                 CreatedUtc = now,
                 LastSeenUtc = now,
@@ -55,8 +74,25 @@ namespace CarCareTracker.Logic
                 return null;
             }
             var session = _sessionData.GetSessionById(sessionId);
+            if (session == null || session.Kind != SessionKind.Browser || !SessionRules.Matches(secret, session.SecretHash))
+            {
+                return null;
+            }
+            return CheckAndRecordSeen(session, userId, context);
+        }
+        public UserSession? GetActiveTokenSession(int sessionId, int userId, HttpContext? context)
+        {
+            var session = sessionId == default ? null : _sessionData.GetSessionById(sessionId);
+            if (session == null || session.Kind != SessionKind.App)
+            {
+                return null;
+            }
+            return CheckAndRecordSeen(session, userId, context);
+        }
+        private UserSession? CheckAndRecordSeen(UserSession session, int userId, HttpContext? context)
+        {
             var now = DateTime.UtcNow;
-            if (session == null || session.UserId != userId || !SessionRules.IsActive(session, now) || !SessionRules.Matches(secret, session.SecretHash))
+            if (session.UserId != userId || !SessionRules.IsActive(session, now))
             {
                 return null;
             }

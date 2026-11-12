@@ -21,11 +21,18 @@ namespace CarCareTracker.Models
         public string SecretHash { get; set; } = string.Empty;
         /// <summary>SHA-256 of the current refresh token for an app session, base64url; empty otherwise.</summary>
         public string RefreshTokenHash { get; set; } = string.Empty;
+        /// <summary>The refresh token before the last rotation; presenting it again means it was copied.</summary>
+        public string PreviousRefreshTokenHash { get; set; } = string.Empty;
         /// <summary>The OAuth client of an app session, e.g. the iOS app; empty for the browser.</summary>
         public string ClientId { get; set; } = string.Empty;
         /// <summary>Short description for the device list, e.g. "iPhone · Safari".</summary>
         public string DeviceName { get; set; } = string.Empty;
         public string LastAddress { get; set; } = string.Empty;
+        /// <summary>Who signed in, as at sign-in; a role change ends the session, so this stays true.</summary>
+        public string UserName { get; set; } = string.Empty;
+        public string EmailAddress { get; set; } = string.Empty;
+        public bool IsAdmin { get; set; }
+        public bool IsRootUser { get; set; }
         public DateTime CreatedUtc { get; set; }
         public DateTime LastSeenUtc { get; set; }
         public DateTime ExpiresUtc { get; set; }

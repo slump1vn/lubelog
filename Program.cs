@@ -119,6 +119,7 @@ builder.Services.AddSingleton<IMailHelper, MailHelper>();
 
 //configure logic
 builder.Services.AddSingleton<ISessionLogic, SessionLogic>();
+builder.Services.AddSingleton<IOAuthLogic, OAuthLogic>();
 builder.Services.AddSingleton<ILoginLogic, LoginLogic>();
 builder.Services.AddSingleton<IUserLogic, UserLogic>();
 builder.Services.AddSingleton<IOdometerLogic, OdometerLogic>();

@@ -1,0 +1,35 @@
+@using CarCareTracker.Helper
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model OAuthConsentViewModel
+@{
+    var userLanguage = config.GetServerLanguage();
+    string T(string text) => translator.Translate(userLanguage, text);
+    ViewData["Title"] = T("Allow app sign-in");
+}
+<div class="no-top-pad container d-flex align-items-center justify-content-center" style="min-height:100dvh">
+    <div class="border rounded shadow p-4 p-md-5" style="max-width:420px">
+        <img src="@config.GetLogoUrl()" class="lubelogger-logo mb-3" alt="" />
+        @if (!string.IsNullOrEmpty(Model.Error))
+        {
+            <div class="alert alert-danger mb-0">@Model.Error</div>
+        }
+        else
+        {
+            <h5 class="mb-3">@T("Allow app sign-in")</h5>
+            <p>@string.Format(T("{0} wants to sign in to your account {1}. It will see the same family finance data you see here."), Model.ClientName, Model.UserName)</p>
+            <p class="small text-muted">@T("The app never sees your password. You can sign it out at any time under Signed-in devices.")</p>
+            <form method="post" action="/oauth/authorize">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="client_id" value="@Model.ClientId" />
+                <input type="hidden" name="redirect_uri" value="@Model.RedirectUri" />
+                <input type="hidden" name="state" value="@Model.State" />
+                <input type="hidden" name="code_challenge" value="@Model.CodeChallenge" />
+                <div class="d-grid gap-2">
+                    <button type="submit" name="decision" value="allow" class="btn btn-primary">@T("Allow")</button>
+                    <button type="submit" name="decision" value="deny" class="btn btn-outline-secondary">@T("Cancel")</button>
+                </div>
+            </form>
+        }
+    </div>
+</div>

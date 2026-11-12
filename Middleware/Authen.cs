@@ -17,6 +17,7 @@ namespace CarCareTracker.Middleware
         private IDataProtector _dataProtector;
         private ILoginLogic _loginLogic;
         private ISessionLogic _sessionLogic;
+        private IOAuthLogic _oauthLogic;
         private bool enableAuth;
         public Authen(
             IOptionsMonitor<AuthenticationSchemeOptions> options,
@@ -25,6 +26,7 @@ namespace CarCareTracker.Middleware
             IConfiguration configuration,
             ILoginLogic loginLogic,
             ISessionLogic sessionLogic,
+            IOAuthLogic oauthLogic,
             IDataProtectionProvider securityProvider,
             IHttpContextAccessor httpContext) : base(options, logger, encoder)
         {
@@ -32,6 +34,7 @@ namespace CarCareTracker.Middleware
             _dataProtector = securityProvider.CreateProtector("login");
             _loginLogic = loginLogic;
             _sessionLogic = sessionLogic;
+            _oauthLogic = oauthLogic;
             enableAuth = bool.Parse(configuration["EnableAuth"] ?? "false");
         }
         protected override async Task<AuthenticateResult> HandleAuthenticateAsync()
@@ -65,6 +68,11 @@ namespace CarCareTracker.Middleware
                 if (string.IsNullOrWhiteSpace(access_token) && string.IsNullOrWhiteSpace(request_header) && string.IsNullOrWhiteSpace(apikey_header))
                 {
                     return AuthenticateResult.Fail("Cookie is invalid or does not exist.");
+                }
+                else if (request_header.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    //access token from the app's OAuth sign-in (RFC 6750).
+                    return AuthenticateBearer(request_header.ToString()["Bearer ".Length..].Trim());
                 }
                 else if (!string.IsNullOrWhiteSpace(request_header))
                 {
@@ -201,12 +209,62 @@ namespace CarCareTracker.Middleware
                 return AuthenticateResult.Fail("Invalid credentials");
             }
         }
+        private AuthenticateResult AuthenticateBearer(string accessToken)
+        {
+            var context = _httpContext.HttpContext;
+            //access tokens are only for the API, never for the web pages.
+            if (context == null || !context.Request.Path.StartsWithSegments("/api"))
+            {
+                return AuthenticateResult.Fail("Access tokens only work on the API.");
+            }
+            var token = _oauthLogic.ReadAccessToken(accessToken);
+            if (token == null)
+            {
+                return AuthenticateResult.Fail("Invalid or expired access token.");
+            }
+            var session = _sessionLogic.GetActiveTokenSession(token.SessionId, token.UserId, context);
+            if (session == null || !_loginLogic.CheckIfUserIsValid(session.UserId))
+            {
+                return AuthenticateResult.Fail("Session ended.");
+            }
+            var appIdentity = new ClaimsIdentity("Custom");
+            var userIdentity = new List<Claim>
+            {
+                new(ClaimTypes.Name, session.UserName),
+                new(ClaimTypes.NameIdentifier, session.UserId.ToString()),
+                new(ClaimTypes.Email, session.EmailAddress ?? string.Empty),
+                new(ClaimTypes.Role, "APIAuth"),
+                new(ClaimTypes.Role, "TokenAuth"),
+                new(LoginSecurity.SessionClaim, session.Id.ToString())
+            };
+            if (session.IsAdmin)
+            {
+                userIdentity.Add(new(ClaimTypes.Role, nameof(UserData.IsAdmin)));
+            }
+            if (session.IsRootUser)
+            {
+                userIdentity.Add(new(ClaimTypes.Role, nameof(UserData.IsRootUser)));
+            }
+            appIdentity.AddClaims(userIdentity);
+            return AuthenticateResult.Success(new AuthenticationTicket(new ClaimsPrincipal(appIdentity), Scheme.Name));
+        }
+        private bool IsApiRequest()
+        {
+            return (Request.RouteValues.TryGetValue("controller", out object? value) && value?.ToString()?.ToLower() == "api") || Request.Path.StartsWithSegments("/api");
+        }
         protected override Task HandleChallengeAsync(AuthenticationProperties properties)
         {
-            if (Request.RouteValues.TryGetValue("controller", out object value) && value?.ToString()?.ToLower() == "api")
+            if (IsApiRequest())
             {
                 Response.StatusCode = 401;
-                Response.Headers.Append("WWW-Authenticate", "Basic");
+                if (Request.Headers.Authorization.ToString().StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    Response.Headers.Append("WWW-Authenticate", "Bearer error=\"invalid_token\"");
+                }
+                else
+                {
+                    Response.Headers.Append("WWW-Authenticate", Request.Path.StartsWithSegments("/api/v1") ? "Bearer" : "Basic");
+                }
                 return Task.CompletedTask;
             }
             if (Request.Path.Value == "/Vehicle/Index" && Request.QueryString.HasValue)
@@ -221,13 +279,10 @@ namespace CarCareTracker.Middleware
         }
         protected override Task HandleForbiddenAsync(AuthenticationProperties properties)
         {
-            if (Request.RouteValues.TryGetValue("controller", out object value))
+            if (IsApiRequest())
             {
-                if (value.ToString().ToLower() == "api")
-                {
-                    Response.StatusCode = 403;
-                    return Task.CompletedTask;
-                }
+                Response.StatusCode = 403;
+                return Task.CompletedTask;
             }
             Response.Redirect("/Error/403");
             return Task.CompletedTask;

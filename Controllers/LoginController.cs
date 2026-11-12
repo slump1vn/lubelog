@@ -76,6 +76,11 @@ namespace CarCareTracker.Controllers
                     redirectURL = string.Empty;
                 }
             }
+            //only addresses on this site, so a crafted link cannot send the user elsewhere after signing in.
+            if (!Url.IsLocalUrl(redirectURL))
+            {
+                redirectURL = string.Empty;
+            }
             return View(model: redirectURL);
         }
         public IActionResult ForgotPassword()
@@ -606,7 +611,7 @@ namespace CarCareTracker.Controllers
         private void SignIn(UserData userData, int days)
         {
             var expiresUtc = DateTime.UtcNow.AddDays(days);
-            var (session, secret) = _sessionLogic.StartBrowserSession(userData.Id, expiresUtc, HttpContext);
+            var (session, secret) = _sessionLogic.StartBrowserSession(userData, expiresUtc, HttpContext);
             AuthCookie authCookie = new AuthCookie
             {
                 UserData = userData,
