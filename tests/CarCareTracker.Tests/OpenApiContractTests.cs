@@ -1,3 +1,4 @@
+using CarCareTracker.Models;
 using CarCareTracker.Models.Api;
 using System.Text.Json;
 using Xunit;
@@ -28,6 +29,16 @@ namespace CarCareTracker.Tests
         [InlineData(typeof(TransactionDto), "Transaction")]
         [InlineData(typeof(DashboardDto), "Dashboard")]
         [InlineData(typeof(TransactionPageDto), "TransactionPage")]
+        [InlineData(typeof(FoodLabelReading), "FoodLabelReading")]
+        [InlineData(typeof(NutrientRating), "NutrientRating")]
+        [InlineData(typeof(FoodNote), "FoodNote")]
+        [InlineData(typeof(AdditiveFinding), "AdditiveFinding")]
+        [InlineData(typeof(AllergenFinding), "AllergenFinding")]
+        [InlineData(typeof(FoodLabelAnalysis), "FoodLabelAnalysis")]
+        [InlineData(typeof(FoodScan), "FoodScan")]
+        [InlineData(typeof(FoodReadResult), "FoodReadResult")]
+        [InlineData(typeof(FoodAnalyzeRequest), "FoodAnalyzeRequest")]
+        [InlineData(typeof(FoodAnalyzeResult), "FoodAnalyzeResult")]
         public void EveryFieldIsDocumented(Type dto, string schemaName)
         {
             var documented = Schemas().GetProperty(schemaName).GetProperty("properties").EnumerateObject().Select(x => x.Name).ToHashSet();

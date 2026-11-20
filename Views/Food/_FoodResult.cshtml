@@ -1,0 +1,174 @@
+@using CarCareTracker.Helper
+@using CarCareTracker.Logic
+@using System.Globalization
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model FoodResultViewModel
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+    bool vi = userLanguage.StartsWith("vi", StringComparison.OrdinalIgnoreCase);
+    string T(string text) => translator.Translate(userLanguage, text);
+    string Num(decimal? value) => value.HasValue ? value.Value.ToString("0.##", CultureInfo.CurrentCulture) : "–";
+    string Utc(DateTime value) => DateTime.SpecifyKind(value.ToUniversalTime(), DateTimeKind.Utc).ToString("o", CultureInfo.InvariantCulture);
+    var analysis = Model.Analysis;
+    var reading = Model.Reading;
+    string per = reading.Kind == FoodKind.Drink ? "100 ml" : "100 g";
+    string NutrientName(string key) => key switch { "fat" => T("Fat"), "saturates" => T("Saturated fat"), "sugars" => T("Sugars"), "salt" => T("Salt"), _ => key };
+    string LightWord(FoodLight light) => light switch { FoodLight.Green => T("Low"), FoodLight.Amber => T("Medium"), FoodLight.Red => T("High"), _ => T("Not on the label") };
+    string LightClass(FoodLight light) => light switch { FoodLight.Green => "success", FoodLight.Amber => "warning", FoodLight.Red => "danger", _ => "secondary" };
+    string ClassName(string key) => FoodReference.Classes.TryGetValue(key, out var name) ? (vi ? name.Vi : name.En) : key;
+    string AllergenName(string key) => FoodReference.Allergens.FirstOrDefault(x => x.Key == key) is { } group ? (vi ? group.Vi : group.En) : key;
+    string NoteText(FoodNote note) => vi ? note.TextVi : note.TextEn;
+    var mine = analysis.Allergens.Where(x => x.InProfile).ToList();
+}
+<div class="card" id="foodResultCard" data-scan-id="@Model.ScanId">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clipboard2-pulse me-1"></i>@(string.IsNullOrWhiteSpace(reading.ProductName) ? T("Result") : reading.ProductName)</span>
+        @if (Model.ScannedAtUtc.HasValue)
+        {
+            <span class="small text-muted"><time class="budget-time" datetime="@Utc(Model.ScannedAtUtc.Value)"></time>@(string.IsNullOrWhiteSpace(Model.ScannedBy) ? "" : $" · {Model.ScannedBy}")</span>
+        }
+    </div>
+    <div class="card-body">
+        @if (!string.IsNullOrWhiteSpace(Model.Message))
+        {
+            <div class="alert alert-warning py-2 small">@Model.Message</div>
+        }
+        @if (mine.Any(x => !x.MayContain))
+        {
+            <div class="alert alert-danger py-2"><i class="bi bi-exclamation-octagon-fill me-1"></i><strong>@T("Contains something in your allergy profile"):</strong> @string.Join(", ", mine.Where(x => !x.MayContain).Select(x => AllergenName(x.Group)))</div>
+        }
+        @if (mine.Any(x => x.MayContain))
+        {
+            <div class="alert alert-warning py-2"><i class="bi bi-exclamation-triangle me-1"></i>@T("May contain something in your allergy profile"): @string.Join(", ", mine.Where(x => x.MayContain).Select(x => AllergenName(x.Group)))</div>
+        }
+        @if (analysis.Issues.Any())
+        {
+            <div class="alert alert-warning py-2 small">
+                <div class="fw-semibold"><i class="bi bi-question-circle me-1"></i>@T("Some numbers look wrong. Please check them against the label:")</div>
+                <ul class="mb-0">
+                    @foreach (var issue in analysis.Issues)
+                    {
+                        <li>@T(issue)</li>
+                    }
+                </ul>
+            </div>
+        }
+
+        <h6 class="mt-1">@string.Format(T("Per {0}"), per)</h6>
+        @if (!analysis.HasNutrition)
+        {
+            <p class="small text-muted">@T("No nutrition numbers to rate. Only the ingredients were checked.")</p>
+        }
+        else
+        {
+            <div class="row g-2 mb-1">
+                @foreach (var rating in analysis.Ratings)
+                {
+                    <div class="col-6 col-md-3">
+                        <div class="border border-2 border-@LightClass(rating.Light) rounded p-2 h-100 bg-@LightClass(rating.Light)-subtle">
+                            <div class="small">@NutrientName(rating.Nutrient)</div>
+                            <div class="fs-5 fw-semibold">@Num(rating.Per100) g</div>
+                            <div class="small fw-semibold text-@LightClass(rating.Light)-emphasis">@LightWord(rating.Light)@(rating.RedByPortion ? $" ({T("large serving")})" : "")</div>
+                            @if (rating.PercentOfDailyLimit.HasValue)
+                            {
+                                <div class="small text-muted">@string.Format(T("1 serving: {0} g = {1}% of the WHO daily limit"), Num(rating.PerServing), rating.PercentOfDailyLimit.Value.ToString("0", CultureInfo.CurrentCulture))</div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+            <div class="small text-muted mb-3">
+                @if (analysis.EnergyKcalPer100.HasValue)
+                {
+                    <span>@T("Energy"): @Num(analysis.EnergyKcalPer100) kcal/@per. </span>
+                }
+                @T("Colours: UK FSA front-of-pack thresholds. Daily limits: WHO, for an adult eating 2000 kcal (sugars on the label include natural sugars, so the share of the free-sugar limit is an upper estimate).")
+                <a href="@FoodReference.Sources.FsaFrontOfPack.Url" target="_blank" rel="noopener">FSA</a> ·
+                <a href="@FoodReference.Sources.WhoFats2023.Url" target="_blank" rel="noopener">WHO</a>
+            </div>
+        }
+
+        @if (analysis.Allergens.Any())
+        {
+            <h6>@T("Allergens on the label")</h6>
+            <div class="mb-3">
+                @foreach (var allergen in analysis.Allergens)
+                {
+                    var css = allergen.InProfile ? "text-bg-danger" : allergen.MayContain ? "text-bg-light border" : "text-bg-secondary";
+                    <span class="badge @css me-1 mb-1" title="@allergen.Matched">@AllergenName(allergen.Group)@(allergen.MayContain ? $" ({T("may contain")})" : "")</span>
+                }
+                <div class="small text-muted">@T("Found by matching words in the ingredient list. Always read the original label if an allergy is serious.") <a href="@FoodReference.Sources.EuFoodInformation.Url" target="_blank" rel="noopener">EU 1169/2011</a></div>
+            </div>
+        }
+
+        @if (analysis.Flags.Any())
+        {
+            <h6>@T("Ingredient notes")</h6>
+            <ul class="small mb-3">
+                @foreach (var flag in analysis.Flags)
+                {
+                    <li>
+                        @if (flag.Level == FoodNoteLevel.Caution) {<i class="bi bi-exclamation-triangle text-warning me-1"></i>}
+                        @NoteText(flag) <a href="@flag.SourceUrl" target="_blank" rel="noopener" class="text-muted">[@flag.SourceName]</a>
+                    </li>
+                }
+            </ul>
+        }
+
+        <h6>@T("Additives")</h6>
+        @if (!analysis.Additives.Any())
+        {
+            <p class="small text-muted">@T("No additive codes or names found in the ingredient list.")</p>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-sm small align-middle">
+                    <thead><tr><th>INS/E</th><th>@T("Name")</th><th>@T("Purpose")</th></tr></thead>
+                    <tbody>
+                        @foreach (var additive in analysis.Additives)
+                        {
+                            <tr>
+                                <td class="text-nowrap">@additive.Code.ToUpperInvariant()</td>
+                                <td>
+                                    @(additive.Known ? (vi ? additive.NameVi : additive.NameEn) : T("Not in the reference table"))
+                                    @foreach (var note in additive.Notes)
+                                    {
+                                        <div class="@(note.Level == FoodNoteLevel.Caution ? "text-warning-emphasis" : "text-muted")">
+                                            @if (note.Level == FoodNoteLevel.Caution) {<i class="bi bi-exclamation-triangle me-1"></i>}
+                                            @NoteText(note) <a href="@note.SourceUrl" target="_blank" rel="noopener" class="text-muted">[@note.SourceName]</a>
+                                        </div>
+                                    }
+                                </td>
+                                <td>@(additive.Known ? ClassName(additive.Class) : "")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <div class="small text-muted mb-3">@T("Permitted additives without a note are listed for information only. A note is shown only when a named authority has said something specific.") <a href="@FoodReference.Sources.Codex.Url" target="_blank" rel="noopener">Codex INS</a></div>
+        }
+
+        @if (Model.ScanId > 0)
+        {
+            <div class="border-top pt-2 mt-2">
+                <h6>@T("Purchase")</h6>
+                <div class="small mb-2" id="foodLinkText">@(string.IsNullOrWhiteSpace(Model.TransactionText) ? T("Not linked to a transaction.") : Model.TransactionText)</div>
+                <div class="input-group input-group-sm mb-2">
+                    <select class="form-select" id="foodLinkSelect"><option value="">@T("Choose a joint-account payment…")</option></select>
+                    <button type="button" class="btn btn-outline-primary" onclick="linkFoodScan(@Model.ScanId)">@T("Link")</button>
+                    @if (!string.IsNullOrWhiteSpace(Model.TransactionText))
+                    {
+                        <button type="button" class="btn btn-outline-secondary" onclick="unlinkFoodScan(@Model.ScanId)">@T("Unlink")</button>
+                    }
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteFoodScan(@Model.ScanId)"><i class="bi bi-trash me-1"></i>@T("Delete scan")</button>
+            </div>
+        }
+        <div class="small text-muted border-top pt-2 mt-3">
+            <i class="bi bi-info-circle me-1"></i>@T("This is general nutrition information, not medical advice. It does not say whether a product is safe for you. If you have an illness, an allergy or a special diet, ask a doctor or dietitian.")
+            <span class="ms-1">@T("References") @analysis.ReferenceVersion.</span>
+        </div>
+    </div>
+</div>

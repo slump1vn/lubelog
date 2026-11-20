@@ -74,6 +74,7 @@ if (!string.IsNullOrWhiteSpace(builder.Configuration["POSTGRES_CONNECTION"])){
     builder.Services.AddSingleton<IApiKeyRecordDataAccess, PGApiKeyRecordDataAccess>();
     builder.Services.AddSingleton<IBudgetDataAccess, PGBudgetDataAccess>();
     builder.Services.AddSingleton<IBankTransactionDataAccess, PGBankTransactionDataAccess>();
+    builder.Services.AddSingleton<IFoodDataAccess, PGFoodDataAccess>();
     builder.Services.AddSingleton<IUserSessionDataAccess, PGUserSessionDataAccess>();
     builder.Services.AddSingleton<IDBHealthCheck, PGDBHealthCheck>();
 }
@@ -103,6 +104,7 @@ else
     builder.Services.AddSingleton<IApiKeyRecordDataAccess, ApiKeyRecordDataAccess>();
     builder.Services.AddSingleton<IBudgetDataAccess, BudgetDataAccess>();
     builder.Services.AddSingleton<IBankTransactionDataAccess, BankTransactionDataAccess>();
+    builder.Services.AddSingleton<IFoodDataAccess, FoodDataAccess>();
     builder.Services.AddSingleton<IUserSessionDataAccess, UserSessionDataAccess>();
     builder.Services.AddSingleton<IDBHealthCheck, DBHealthCheck>();
 }
@@ -130,6 +132,7 @@ builder.Services.AddSingleton<IAiLogic, AiLogic>();
 builder.Services.AddSingleton<IBudgetLogic, BudgetLogic>();
 builder.Services.AddSingleton<ISepayLogic, SepayLogic>();
 builder.Services.AddSingleton<IReconciliationLogic, ReconciliationLogic>();
+builder.Services.AddSingleton<IFoodLogic, FoodLogic>();
 //pulls the joint account from SePay when LUBELOGGER_SEPAY_API_KEY is set; does nothing otherwise.
 builder.Services.AddHostedService<SepaySyncService>();
 

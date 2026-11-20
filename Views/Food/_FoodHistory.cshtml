@@ -1,0 +1,42 @@
+@using CarCareTracker.Helper
+@using System.Globalization
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model List<FoodScan>
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+    string T(string text) => translator.Translate(userLanguage, text);
+    string Utc(DateTime value) => DateTime.SpecifyKind(value.ToUniversalTime(), DateTimeKind.Utc).ToString("o", CultureInfo.InvariantCulture);
+}
+@if (!Model.Any())
+{
+    <p class="small text-muted m-3">@T("No scans yet.")</p>
+}
+else
+{
+    <div class="list-group list-group-flush">
+        @foreach (var scan in Model)
+        {
+            var name = string.IsNullOrWhiteSpace(scan.Reading.ProductName) ? T("Unnamed product") : scan.Reading.ProductName;
+            <button type="button" class="list-group-item list-group-item-action" onclick="showFoodScan(@scan.Id)">
+                <div class="d-flex justify-content-between align-items-start gap-2">
+                    <div class="text-truncate">
+                        <div class="fw-semibold text-truncate">@name</div>
+                        <div class="small text-muted"><time class="budget-time" datetime="@Utc(scan.CreatedAtUtc)"></time> · @scan.UserName
+                            @if (scan.TransactionId > 0)
+                            {
+                                <span> · <i class="bi bi-link-45deg"></i></span>
+                            }
+                        </div>
+                    </div>
+                    <div class="text-nowrap">
+                        @if (scan.Analysis.RedCount > 0) {<span class="badge text-bg-danger me-1">@scan.Analysis.RedCount</span>}
+                        @if (scan.Analysis.AmberCount > 0) {<span class="badge text-bg-warning me-1">@scan.Analysis.AmberCount</span>}
+                        @if (scan.Analysis.GreenCount > 0) {<span class="badge text-bg-success me-1">@scan.Analysis.GreenCount</span>}
+                        @if (scan.Analysis.Allergens.Any(x => x.InProfile && !x.MayContain)) {<i class="bi bi-exclamation-octagon-fill text-danger" title="@T("Contains something in your allergy profile")"></i>}
+                    </div>
+                </div>
+            </button>
+        }
+    </div>
+}
