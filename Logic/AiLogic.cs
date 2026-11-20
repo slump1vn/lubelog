@@ -16,6 +16,8 @@ namespace CarCareTracker.Logic
         int GetRecordVehicleId(ImportMode recordType, int recordId);
         OperationResponse AttachPayment(AiAttachPaymentRequest request, UserConfig userConfig);
         OperationResponse SaveDraft(AiDraft draft, Vehicle vehicle, UserConfig userConfig, int userId, string userName);
+        /// <summary>Asks the vision model about one image and parses its JSON answer; null when the model fails.</summary>
+        Task<T?> AskVision<T>(string systemPrompt, string userMessage, JsonObject schema, string imageBase64) where T : class;
     }
     /// <summary>
     /// Turns a chat message into a draft record or an answer.
@@ -278,6 +280,10 @@ namespace CarCareTracker.Logic
             {
                 _modelLock.Release();
             }
+        }
+        public Task<T?> AskVision<T>(string systemPrompt, string userMessage, JsonObject schema, string imageBase64) where T : class
+        {
+            return AskModel<T>(VisionModelName, systemPrompt, userMessage, schema, imageBase64);
         }
         private Task<ModelResult?> AskModel(string message, List<Vehicle> vehicles, DateTime today)
         {

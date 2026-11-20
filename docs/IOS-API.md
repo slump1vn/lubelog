@@ -36,6 +36,11 @@ The contract is [`wwwroot/api/openapi-v1.json`](../wwwroot/api/openapi-v1.json),
 | `GET /api/v1/finance/dashboard` | balance, money in and out this cycle, balance per day, coming up, last 8 transactions |
 | `GET /api/v1/finance/transactions?limit=50&cursor=...` | transactions newest first; pass `nextCursor` back for older ones |
 | `GET /api/v1/finance/budget` | paydays, funds, limits, debts (404 until set up on the website) |
+| `POST /api/v1/food/read` | reads 1 to 3 label photos (multipart `files`) with the home AI; photos are not stored |
+| `POST /api/v1/food/analyze` | rates a checked reading; `save: true` adds it to the household history |
+| `GET /api/v1/food/scans`, `GET /api/v1/food/scans/{id}` | saved label scans, with the caller's own allergy marks |
+
+The two food `POST` calls need the `Authorization: Bearer` header (a browser cookie alone is refused with 403). See [FOOD-LABEL.md](FOOD-LABEL.md).
 
 Answers are never cached. Errors are RFC 9457 problem details (`application/problem+json`).
 

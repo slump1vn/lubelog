@@ -1,0 +1,139 @@
+@using CarCareTracker.Helper
+@using CarCareTracker.Logic
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model FoodPageViewModel
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+    bool vi = userLanguage.StartsWith("vi", StringComparison.OrdinalIgnoreCase);
+    string T(string text) => translator.Translate(userLanguage, text);
+    var numberFields = new List<(string Field, string Label, string Unit)>
+    {
+        ("EnergyKcal", "Energy", "kcal"),
+        ("Fat", "Fat", "g"),
+        ("SaturatedFat", "Saturated fat", "g"),
+        ("TransFat", "Trans fat", "g"),
+        ("Carbohydrate", "Carbohydrate", "g"),
+        ("Sugars", "Sugars", "g"),
+        ("Fibre", "Fibre", "g"),
+        ("Protein", "Protein", "g"),
+        ("Salt", "Salt", "g"),
+        ("SodiumMg", "Sodium", "mg")
+    };
+}
+<div class="row g-3 mt-1" id="foodPage" data-reading-label="@T("Reading the label with the home AI. This can take up to a minute per photo.")">
+    <div class="col-12 col-lg-7">
+        <div class="card">
+            <div class="card-header"><i class="bi bi-upc-scan me-1"></i>@T("Food label check")</div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">@T("Photograph the nutrition table and the ingredient list. The home AI only reads the text; the ratings come from published thresholds (UK FSA, WHO) and additive references (Codex, EU, EFSA, IARC), shown with their sources.")</p>
+                @if (!Model.ModelConfigured)
+                {
+                    <div class="alert alert-warning py-2 small"><i class="bi bi-exclamation-triangle me-1"></i>@T("Reading images needs the home AI, which is not turned on"). @T("You can still enter the numbers by hand.")</div>
+                }
+                <div id="foodStepPhotos">
+                    <div class="d-flex flex-wrap gap-2 mb-2">
+                        <label class="btn btn-primary mb-0" for="foodCameraInput"><i class="bi bi-camera me-1"></i>@T("Take photo")</label>
+                        <input type="file" id="foodCameraInput" accept="image/*" capture="environment" class="d-none" onchange="addFoodPhotos(this)">
+                        <label class="btn btn-outline-primary mb-0" for="foodFileInput"><i class="bi bi-images me-1"></i>@T("Choose photos")</label>
+                        <input type="file" id="foodFileInput" accept="image/png,image/jpeg,image/*" multiple class="d-none" onchange="addFoodPhotos(this)">
+                        <button type="button" class="btn btn-link" onclick="showFoodCheck(null)">@T("Enter by hand")</button>
+                    </div>
+                    <div class="small text-muted mb-2">@T("Up to 3 photos of the same product: nutrition table, ingredients, front.")</div>
+                    <div id="foodThumbs" class="d-flex flex-wrap gap-2 mb-2"></div>
+                    <button type="button" class="btn btn-success d-none" id="foodReadButton" onclick="readFoodLabel()"><i class="bi bi-magic me-1"></i>@T("Read label")</button>
+                    <div id="foodReading" class="d-none mt-2"><span class="spinner-border spinner-border-sm me-2"></span><span class="small"></span></div>
+                </div>
+                <form id="foodCheckForm" class="d-none mt-3" onsubmit="analyzeFoodLabel(); return false;">
+                    <h6 class="mb-1">@T("Check the numbers")</h6>
+                    <p class="small text-muted mb-2">@T("Compare with the label and correct anything that was misread. Fields the AI was unsure about are highlighted. Leave a field empty if it is not on the label.")</p>
+                    <div class="row g-2">
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small mb-0" for="foodProductName">@T("Product")</label>
+                            <input type="text" class="form-control form-control-sm" id="foodProductName" data-field="ProductName" maxlength="120">
+                        </div>
+                        <div class="col-12 col-md-6">
+                            <label class="form-label small mb-0" for="foodBrand">@T("Brand")</label>
+                            <input type="text" class="form-control form-control-sm" id="foodBrand" data-field="Brand" maxlength="80">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-0" for="foodKind">@T("Type")</label>
+                            <select class="form-select form-select-sm" id="foodKind" data-field="Kind">
+                                <option value="Food">@T("Food (per 100 g)")</option>
+                                <option value="Drink">@T("Drink (per 100 ml)")</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-0" for="foodBasis">@T("Table values are")</label>
+                            <select class="form-select form-select-sm" id="foodBasis" data-field="Basis">
+                                <option value="Per100">@T("per 100 g/ml")</option>
+                                <option value="PerServing">@T("per serving")</option>
+                            </select>
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-0" for="foodServingSize">@T("Serving") (g/ml)</label>
+                            <input type="number" step="any" min="0" inputmode="decimal" class="form-control form-control-sm" id="foodServingSize" data-field="ServingSize">
+                        </div>
+                        <div class="col-6 col-md-3">
+                            <label class="form-label small mb-0" for="foodNetQuantity">@T("Net quantity") (g/ml)</label>
+                            <input type="number" step="any" min="0" inputmode="decimal" class="form-control form-control-sm" id="foodNetQuantity" data-field="NetQuantity">
+                        </div>
+                        @foreach (var field in numberFields)
+                        {
+                            <div class="col-6 col-md-3">
+                                <label class="form-label small mb-0" for="food@(field.Field)">@T(field.Label) (@field.Unit)</label>
+                                <input type="number" step="any" min="0" inputmode="decimal" class="form-control form-control-sm" id="food@(field.Field)" data-field="@field.Field">
+                            </div>
+                        }
+                        <div class="col-12">
+                            <label class="form-label small mb-0" for="foodIngredients">@T("Ingredients")</label>
+                            <textarea class="form-control form-control-sm" id="foodIngredients" data-field="Ingredients" rows="4" maxlength="4000"></textarea>
+                        </div>
+                        <input type="hidden" id="foodBarcode" data-field="Barcode">
+                    </div>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="foodSave" checked>
+                        <label class="form-check-label small" for="foodSave">@T("Save to the household history")</label>
+                    </div>
+                    <div class="d-flex gap-2 mt-2">
+                        <button type="submit" class="btn btn-success"><i class="bi bi-clipboard2-pulse me-1"></i>@T("Analyse")</button>
+                        <button type="button" class="btn btn-outline-secondary" onclick="resetFoodPage()">@T("Start over")</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <div id="foodResult" class="mt-3"></div>
+    </div>
+    <div class="col-12 col-lg-5">
+        <div class="card mb-3">
+            <div class="card-header"><i class="bi bi-clock-history me-1"></i>@T("Scan history")</div>
+            <div class="card-body p-0" id="foodHistory">
+                <partial name="_FoodHistory" model="Model.History" />
+            </div>
+        </div>
+        <div class="card">
+            <div class="card-header"><i class="bi bi-shield-lock me-1"></i>@T("My allergy profile")</div>
+            <div class="card-body">
+                <p class="small text-muted">@T("Optional. Tick what you must avoid and scans will point it out for you. Only you can see your profile; it stays on the home server and is never sent to the AI. Saving an empty profile deletes it.")</p>
+                <div class="row g-1" id="foodProfile">
+                    @foreach (var group in FoodReference.Allergens)
+                    {
+                        <div class="col-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" value="@group.Key" id="foodAllergen_@group.Key" @(Model.Profile.Allergens.Contains(group.Key) ? "checked" : "")>
+                                <label class="form-check-label small" for="foodAllergen_@group.Key">@(vi ? group.Vi : group.En)</label>
+                            </div>
+                        </div>
+                    }
+                </div>
+                <div class="d-flex gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="saveFoodProfile()">@T("Save")</button>
+                    @if (Model.Profile.Allergens.Any())
+                    {
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteFoodProfile()">@T("Delete my profile")</button>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

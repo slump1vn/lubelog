@@ -59,6 +59,9 @@ function bindTabEvent() {
             case "budget-tab":
                 loadBudget(false);
                 break;
+            case "food-tab":
+                loadFood();
+                break;
             case "assistant-tab":
                 loadAssistant();
                 break;
@@ -91,6 +94,9 @@ function bindTabEvent() {
                     break;
                 case "budget-tab":
                     $("#budget-tab-pane").html("");
+                    break;
+                case "food-tab":
+                    $("#food-tab-pane").html("");
                     break;
                 case "assistant-tab":
                     $("#assistant-tab-pane").html("");
