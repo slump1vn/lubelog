@@ -61,6 +61,11 @@ namespace CarCareTracker.Models.Api
         public long? Balance { get; set; }
         public string Content { get; set; } = string.Empty;
         public string Reference { get; set; } = string.Empty;
+        /// <summary>"webhook" or "api" (SePay), "statement" (imported bank statement), "manual" (entered by hand).</summary>
+        public string Source { get; set; } = string.Empty;
+        /// <summary>Spending category set by hand; empty when not classified.</summary>
+        public string Category { get; set; } = string.Empty;
+        public string Note { get; set; } = string.Empty;
     }
     public class DashboardDto
     {
@@ -138,5 +143,97 @@ namespace CarCareTracker.Models.Api
         /// <summary>Percent per year; null when unknown.</summary>
         public decimal? AnnualInterestRate { get; set; }
         public string FundKey { get; set; } = string.Empty;
+    }
+
+    /// <summary>A change of the bank balance that no recorded transaction explains.</summary>
+    public class BalanceGapDto
+    {
+        /// <summary>Stable id of the gap; send it back to explain the gap.</summary>
+        public string Key { get; set; } = string.Empty;
+        public DateTime FromUtc { get; set; }
+        public DateTime ToUtc { get; set; }
+        public long BalanceBefore { get; set; }
+        public long BalanceAfter { get; set; }
+        /// <summary>Unexplained amount, always positive; see direction.</summary>
+        public long Amount { get; set; }
+        /// <summary>"in" or "out".</summary>
+        public string Direction { get; set; } = string.Empty;
+        /// <summary>Entries made by hand already inside the gap's period.</summary>
+        public int ManualEntries { get; set; }
+    }
+    public class ReconciliationDto
+    {
+        /// <summary>False until the joint account number is saved on the website.</summary>
+        public bool HasAccount { get; set; }
+        /// <summary>Newest first.</summary>
+        public List<BalanceGapDto> Gaps { get; set; } = new();
+        /// <summary>Entries made by hand, newest first (at most 30).</summary>
+        public List<TransactionDto> ManualEntries { get; set; } = new();
+        /// <summary>Categories to choose from, as "Fund: Category", ending with "Other".</summary>
+        public List<string> Categories { get; set; } = new();
+    }
+    /// <summary>Explains (part of) a gap. Send an Idempotency-Key header so a retry cannot add it twice.</summary>
+    public class ManualTransactionRequest
+    {
+        public string GapKey { get; set; } = string.Empty;
+        /// <summary>Whole VND, at most the gap's amount.</summary>
+        public long Amount { get; set; }
+        /// <summary>Vietnam calendar date the money moved, yyyy-MM-dd.</summary>
+        public string Date { get; set; } = string.Empty;
+        public string Category { get; set; } = string.Empty;
+        public string Note { get; set; } = string.Empty;
+    }
+    public class SyncResultDto
+    {
+        public bool Succeeded { get; set; }
+        /// <summary>New transactions stored by this sync.</summary>
+        public int Added { get; set; }
+        /// <summary>Machine-readable reason when it did not succeed, e.g. "not_configured".</summary>
+        public string? Error { get; set; }
+        public DateTime? LastRunUtc { get; set; }
+        /// <summary>True when a sync ran moments ago and its result is returned instead of asking SePay again.</summary>
+        public bool Recent { get; set; }
+    }
+    public class SessionDto
+    {
+        public int Id { get; set; }
+        /// <summary>"app" or "browser".</summary>
+        public string Kind { get; set; } = string.Empty;
+        public string DeviceName { get; set; } = string.Empty;
+        public DateTime CreatedUtc { get; set; }
+        public DateTime LastSeenUtc { get; set; }
+        public DateTime ExpiresUtc { get; set; }
+        /// <summary>The session this request was made with.</summary>
+        public bool IsCurrent { get; set; }
+    }
+    /// <summary>What the home AI read on a photo of a receipt or a bank transfer, and the gaps it may explain.</summary>
+    public class ReceiptReadingDto
+    {
+        /// <summary>"receipt", "transfer" or "other" (not readable / not a receipt).</summary>
+        public string Kind { get; set; } = string.Empty;
+        /// <summary>Shop name, or the recipient of a transfer.</summary>
+        public string Vendor { get; set; } = string.Empty;
+        /// <summary>yyyy-MM-dd; null when the photo shows no date.</summary>
+        public DateOnly? Date { get; set; }
+        /// <summary>Whole VND; 0 when not readable.</summary>
+        public long Total { get; set; }
+        /// <summary>Transfer content, or a short list of the items bought.</summary>
+        public string Content { get; set; } = string.Empty;
+        /// <summary>Transaction code of a transfer.</summary>
+        public string Reference { get; set; } = string.Empty;
+        /// <summary>Money-out gaps this payment may explain, best match first.</summary>
+        public List<BalanceGapDto> Gaps { get; set; } = new();
+        /// <summary>A bank transaction that already records this payment, when one matches.</summary>
+        public TransactionDto? AlreadyRecorded { get; set; }
+    }
+    /// <summary>One broken rule in a problem response, under "errors".</summary>
+    public class ApiIssueDto
+    {
+        /// <summary>Stable, e.g. "amount_exceeds_gap"; the apps translate it.</summary>
+        public string Code { get; set; } = string.Empty;
+        /// <summary>English text, for logs and as a fallback.</summary>
+        public string Message { get; set; } = string.Empty;
+        /// <summary>Values that fill the {0}, {1} ... of the message, as text.</summary>
+        public List<string> Args { get; set; } = new();
     }
 }

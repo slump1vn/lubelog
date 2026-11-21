@@ -11,6 +11,9 @@ class Transaction {
     required this.balance,
     required this.content,
     required this.reference,
+    this.source,
+    this.category,
+    this.note,
     this.additionalProperties = const {},
   });
 
@@ -26,6 +29,11 @@ class Transaction {
       balance: json["balance"] as int?,
       content: json["content"] as String,
       reference: json["reference"] as String,
+      source: json.containsKey("source") ? json["source"] as String : null,
+      category: json.containsKey("category")
+          ? json["category"] as String
+          : null,
+      note: json.containsKey("note") ? json["note"] as String : null,
       additionalProperties: {
         for (final entry in json.entries)
           if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
@@ -47,6 +55,12 @@ class Transaction {
 
   final String reference;
 
+  final String? source;
+
+  final String? category;
+
+  final String? note;
+
   static const _knownKeys = <String>{
     "id",
     "occurredAtUtc",
@@ -55,6 +69,9 @@ class Transaction {
     "balance",
     "content",
     "reference",
+    "source",
+    "category",
+    "note",
   };
 
   final Map<String, Object?> additionalProperties;
@@ -69,5 +86,8 @@ class Transaction {
     "balance": this.balance,
     "content": this.content,
     "reference": this.reference,
+    if (this.source != null) "source": this.source,
+    if (this.category != null) "category": this.category,
+    if (this.note != null) "note": this.note,
   };
 }

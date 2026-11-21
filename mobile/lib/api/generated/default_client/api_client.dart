@@ -11,7 +11,15 @@ import 'models/food_analyze_request.dart' as models show FoodAnalyzeRequest;
 import 'models/food_analyze_result.dart' as models show FoodAnalyzeResult;
 import 'models/food_read_result.dart' as models show FoodReadResult;
 import 'models/food_scan.dart' as models show FoodScan;
+import 'models/manual_transaction_request.dart'
+    as models
+    show ManualTransactionRequest;
 import 'models/me.dart' as models show Me;
+import 'models/receipt_reading.dart' as models show ReceiptReading;
+import 'models/reconciliation.dart' as models show Reconciliation;
+import 'models/session.dart' as models show Session;
+import 'models/sync_result.dart' as models show SyncResult;
+import 'models/transaction.dart' as models show Transaction;
 import 'models/transaction_page.dart' as models show TransactionPage;
 
 class ApiClient {
@@ -189,6 +197,377 @@ class ApiClient {
       cancelToken: cancelToken,
     );
     return models.Budget.fromJson(response.data as Map<String, Object?>);
+  }
+
+  Future<models.Budget> saveBudget({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    required String ifMatch,
+    required models.Budget body,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "PUT",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      contentType: "application/json",
+      headers: {
+        for (final entry
+            in (options?.headers ?? const <String, Object?>{}).entries)
+          if (entry.key.toLowerCase() != 'content-type') entry.key: entry.value,
+        'Accept': "application/json",
+        "If-Match": ifMatch,
+      },
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/finance/budget",
+      options: _options,
+      data: convert.jsonEncode(body),
+      cancelToken: cancelToken,
+    );
+    return models.Budget.fromJson(response.data as Map<String, Object?>);
+  }
+
+  Future<models.Reconciliation> getReconciliation({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "GET",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      headers: {...?options?.headers, 'Accept': "application/json"},
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/finance/reconciliation",
+      options: _options,
+      cancelToken: cancelToken,
+    );
+    return models.Reconciliation.fromJson(
+      response.data as Map<String, Object?>,
+    );
+  }
+
+  Future<models.Transaction> addManualTransaction({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    String? idempotencyKey,
+    required models.ManualTransactionRequest body,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "POST",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      contentType: "application/json",
+      headers: {
+        for (final entry
+            in (options?.headers ?? const <String, Object?>{}).entries)
+          if (entry.key.toLowerCase() != 'content-type') entry.key: entry.value,
+        'Accept': "application/json",
+        if (idempotencyKey != null) "Idempotency-Key": idempotencyKey,
+      },
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/finance/manual-transactions",
+      options: _options,
+      data: convert.jsonEncode(body),
+      cancelToken: cancelToken,
+    );
+    return models.Transaction.fromJson(response.data as Map<String, Object?>);
+  }
+
+  Future<void> deleteManualTransaction({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    required int id,
+  }) async {
+    if (const {'', '.', '..'}.contains(Uri.encodeComponent(id.toString()))) {
+      throw ArgumentError('Invalid path segment.');
+    }
+    final _options = (options ?? Options()).copyWith(
+      method: "DELETE",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      headers: {...?options?.headers, 'Accept': "application/json"},
+      validateStatus: (status) => status != null && (status == 204),
+    );
+    await _transport.request<dynamic>(
+      "/api/v1/finance/manual-transactions/" +
+          Uri.encodeComponent(id.toString()),
+      options: _options,
+      cancelToken: cancelToken,
+    );
+  }
+
+  Future<models.SyncResult> syncAccount({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "POST",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      headers: {...?options?.headers, 'Accept': "application/json"},
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/finance/account/sync",
+      options: _options,
+      cancelToken: cancelToken,
+    );
+    return models.SyncResult.fromJson(response.data as Map<String, Object?>);
+  }
+
+  Future<models.ReceiptReading> readReceipt({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    required MultipartFile file,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "POST",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      contentType: "multipart/form-data",
+      headers: {
+        for (final entry
+            in (options?.headers ?? const <String, Object?>{}).entries)
+          if (entry.key.toLowerCase() != 'content-type') entry.key: entry.value,
+        'Accept': "application/json",
+      },
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final formData = FormData();
+    formData.files.add(MapEntry("file", file));
+    final response = await _transport.request<dynamic>(
+      "/api/v1/finance/receipts/read",
+      options: _options,
+      data: formData,
+      cancelToken: cancelToken,
+    );
+    return models.ReceiptReading.fromJson(
+      response.data as Map<String, Object?>,
+    );
+  }
+
+  Future<List<models.Session>> listSessions({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "GET",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      headers: {...?options?.headers, 'Accept': "application/json"},
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/me/sessions",
+      options: _options,
+      cancelToken: cancelToken,
+    );
+    return (response.data as List<Object?>)
+        .map((item) => models.Session.fromJson(item as Map<String, Object?>))
+        .toList();
+  }
+
+  Future<void> endSession({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    required int id,
+  }) async {
+    if (const {'', '.', '..'}.contains(Uri.encodeComponent(id.toString()))) {
+      throw ArgumentError('Invalid path segment.');
+    }
+    final _options = (options ?? Options()).copyWith(
+      method: "DELETE",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      headers: {...?options?.headers, 'Accept': "application/json"},
+      validateStatus: (status) => status != null && (status == 204),
+    );
+    await _transport.request<dynamic>(
+      "/api/v1/me/sessions/" + Uri.encodeComponent(id.toString()),
+      options: _options,
+      cancelToken: cancelToken,
+    );
   }
 
   Future<models.FoodReadResult> readFoodLabel({
