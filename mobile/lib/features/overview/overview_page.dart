@@ -9,6 +9,7 @@ import '../../shared/dates.dart';
 import '../../shared/money.dart';
 import '../../shared/widgets.dart';
 import '../transactions/transaction_tile.dart';
+import '../home/sync_button.dart';
 
 class OverviewPage extends ConsumerWidget {
   const OverviewPage({super.key});
@@ -18,7 +19,10 @@ class OverviewPage extends ConsumerWidget {
     final async = ref.watch(dashboardProvider);
     final now = ref.watch(nowProvider)();
     return Scaffold(
-      appBar: AppBar(title: const Text('Tổng quan')),
+      appBar: AppBar(
+        title: const Text('Tổng quan'),
+        actions: const [SyncButton()],
+      ),
       body: RefreshIndicator(
         onRefresh: ref.read(dashboardProvider.notifier).refresh,
         child: switch (async) {
@@ -239,6 +243,16 @@ class _CycleCard extends StatelessWidget {
                       'Tiền vào gồm ${formatVnd(c.unrecordedIn)} suy ra từ số dư',
                   ].join('. '),
                   style: quiet,
+                ),
+              ),
+            if (c.unrecordedOut > 0 || c.unrecordedIn > 0)
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  key: const Key('open-reconciliation'),
+                  onPressed: () => context.go('/more/reconciliation'),
+                  icon: const Icon(Icons.fact_check_outlined, size: 18),
+                  label: const Text('Ghi rõ các khoản này'),
                 ),
               ),
           ],

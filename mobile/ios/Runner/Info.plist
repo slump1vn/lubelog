@@ -24,6 +24,12 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Chụp hóa đơn và nhãn thực phẩm để AI ở nhà đọc. Ảnh không được lưu lại.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Chọn ảnh hóa đơn hoặc nhãn thực phẩm có sẵn để AI ở nhà đọc.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Mở khóa app tài chính gia đình bằng Face ID.</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

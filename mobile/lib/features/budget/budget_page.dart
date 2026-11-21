@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../api/generated/soitho_api.dart';
 import '../../auth/auth_controller.dart';
@@ -8,7 +9,7 @@ import '../../data/finance_providers.dart';
 import '../../shared/money.dart';
 import '../../shared/widgets.dart';
 
-/// Read-only view of the household plan. Editing stays on the website until phase 2.
+/// The household plan. The numbers can be changed on the edit page.
 class BudgetPage extends ConsumerWidget {
   const BudgetPage({super.key});
 
@@ -19,7 +20,18 @@ class BudgetPage extends ConsumerWidget {
     final auth = ref.watch(authControllerProvider);
     final myId = auth is SignedIn ? auth.me?.id : null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Ngân sách')),
+      appBar: AppBar(
+        title: const Text('Ngân sách'),
+        actions: [
+          if (async.hasValue)
+            IconButton(
+              key: const Key('budget-edit'),
+              tooltip: 'Sửa',
+              onPressed: () => context.go('/budget/edit'),
+              icon: const Icon(Icons.edit_outlined),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: ref.read(budgetProvider.notifier).refresh,
         child: switch (async) {

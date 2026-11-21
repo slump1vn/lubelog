@@ -40,3 +40,24 @@ String savedAtLabel(DateTime savedAt, DateTime now) {
   if (_dayOnly(local) == _dayOnly(now)) return clock(local);
   return '${clock(local)} ${DateFormat('d/M', 'vi_VN').format(local)}';
 }
+
+/// The Vietnam calendar date (UTC+7) of a UTC time, as "yyyy-MM-dd": the
+/// server's dates are Vietnam dates whatever the phone's time zone.
+String vietnamDay(DateTime utc) {
+  final vn = utc.toUtc().add(const Duration(hours: 7));
+  return '${vn.year.toString().padLeft(4, '0')}-'
+      '${vn.month.toString().padLeft(2, '0')}-'
+      '${vn.day.toString().padLeft(2, '0')}';
+}
+
+/// "yyyy-MM-dd" of a calendar day picked on the phone.
+String isoDay(DateTime day) =>
+    '${day.year.toString().padLeft(4, '0')}-'
+    '${day.month.toString().padLeft(2, '0')}-'
+    '${day.day.toString().padLeft(2, '0')}';
+
+/// "14:05 19/11" in the phone's time, for periods that span days.
+String shortMoment(DateTime utc) {
+  final local = utc.toLocal();
+  return '${clock(local)} ${local.day}/${local.month}';
+}

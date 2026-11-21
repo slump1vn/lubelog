@@ -14,6 +14,9 @@ class FakeServer implements HttpClientAdapter {
   final requests = <({RequestOptions options, String body})>[];
   Duration delay = Duration.zero;
 
+  /// Extra response headers, e.g. an ETag.
+  Map<String, List<String>> Function(RequestOptions request)? headers;
+
   List<String> get paths => [for (final r in requests) r.options.uri.path];
 
   @override
@@ -28,7 +31,8 @@ class FakeServer implements HttpClientAdapter {
         bytes.addAll(chunk);
       }
     }
-    final body = utf8.decode(bytes);
+    // Photos are binary: keep the text parts readable, ignore the rest.
+    final body = utf8.decode(bytes, allowMalformed: true);
     requests.add((options: options, body: body));
     if (delay > Duration.zero) await Future<void>.delayed(delay);
     final answer = handler(options, body);
@@ -37,6 +41,7 @@ class FakeServer implements HttpClientAdapter {
       answer.status,
       headers: {
         Headers.contentTypeHeader: ['application/json'],
+        ...?headers?.call(options),
       },
     );
   }

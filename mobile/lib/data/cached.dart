@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 
 import '../auth/token_manager.dart';
+import '../shared/issues.dart';
 
 /// A screen's data and where it came from.
 class Cached<T> {
@@ -29,6 +30,8 @@ String describeError(Object error) {
     if (error.error is SignedOutException) {
       return 'Phiên đăng nhập đã hết hạn.';
     }
+    final issues = problemIssues(error);
+    if (issues.isNotEmpty) return issues.join('\n');
     final status = error.response?.statusCode;
     if (status == null) {
       return 'Không kết nối được máy chủ. Kiểm tra mạng rồi kéo xuống để thử lại.';

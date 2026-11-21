@@ -5,7 +5,12 @@ import 'package:go_router/go_router.dart';
 import '../auth/auth_controller.dart';
 import '../features/home/home_shell.dart';
 import '../features/home/more_page.dart';
+import '../features/budget/budget_edit_page.dart';
 import '../features/budget/budget_page.dart';
+import '../features/food/food_page.dart';
+import '../features/receipt/receipt_page.dart';
+import '../features/reconciliation/reconciliation_page.dart';
+import '../features/sessions/sessions_page.dart';
 import '../features/overview/overview_page.dart';
 import '../features/transactions/transactions_page.dart';
 import '../features/login/login_page.dart';
@@ -55,12 +60,50 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(path: '/budget', builder: (_, _) => const BudgetPage()),
+              GoRoute(
+                path: '/budget',
+                builder: (_, _) => const BudgetPage(),
+                routes: [
+                  GoRoute(
+                    path: 'edit',
+                    builder: (_, _) => const BudgetEditPage(),
+                  ),
+                ],
+              ),
             ],
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(path: '/more', builder: (_, _) => const MorePage()),
+              GoRoute(
+                path: '/more',
+                builder: (_, _) => const MorePage(),
+                routes: [
+                  GoRoute(
+                    path: 'reconciliation',
+                    builder: (_, _) => const ReconciliationPage(),
+                    routes: [
+                      GoRoute(
+                        path: 'receipt',
+                        builder: (_, _) => const ReceiptPage(),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'food',
+                    builder: (_, _) => const FoodPage(),
+                    routes: [
+                      GoRoute(
+                        path: 'history',
+                        builder: (_, _) => const FoodHistoryPage(),
+                      ),
+                    ],
+                  ),
+                  GoRoute(
+                    path: 'sessions',
+                    builder: (_, _) => const SessionsPage(),
+                  ),
+                ],
+              ),
             ],
           ),
         ],

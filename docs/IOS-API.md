@@ -47,10 +47,20 @@ The contract is [`wwwroot/api/openapi-v1.json`](../wwwroot/api/openapi-v1.json),
 | `POST /api/v1/food/read` | reads 1 to 3 label photos (multipart `files`) with the home AI; photos are not stored |
 | `POST /api/v1/food/analyze` | rates a checked reading; `save: true` adds it to the household history |
 | `GET /api/v1/food/scans`, `GET /api/v1/food/scans/{id}` | saved label scans, with the caller's own allergy marks |
+| `PUT /api/v1/finance/budget` | replaces the plan; needs `If-Match` with the `ETag` from GET (428 without, 412 when the partner saved in between); the joint account is kept |
+| `GET /api/v1/finance/reconciliation` | balance changes no transaction explains (gaps), entries made by hand, categories |
+| `POST /api/v1/finance/manual-transactions` | explains (part of) a gap; send `Idempotency-Key` (a new UUID per entry): a retry returns the first entry (200) instead of adding another (201) |
+| `DELETE /api/v1/finance/manual-transactions/{id}` | deletes an entry made by hand (bank lines cannot be deleted) |
+| `POST /api/v1/finance/account/sync` | asks SePay now; within 30 s of the last sync its result comes back with `recent: true` |
+| `POST /api/v1/finance/receipts/read` | reads one receipt or transfer photo (multipart `file`) with the home AI and lists the money-out gaps it may explain; nothing is stored |
+| `GET /api/v1/me/sessions`, `DELETE /api/v1/me/sessions/{id}` | where the user is signed in; sign one device out |
 
-The two food `POST` calls need the `Authorization: Bearer` header (a browser cookie alone is refused with 403). See [FOOD-LABEL.md](FOOD-LABEL.md).
+Every write (`POST`, `PUT`, `DELETE`) needs the `Authorization: Bearer` header (a browser cookie alone is refused with 403). See [FOOD-LABEL.md](FOOD-LABEL.md) for the food calls.
 
-Answers are never cached. Errors are RFC 9457 problem details (`application/problem+json`).
+Answers are never cached. Errors are RFC 9457 problem details (`application/problem+json`). When a
+request breaks a business rule, the problem has `errors: [{ code, message, args }]`: `code` is stable
+(for example `amount_exceeds_gap`, or the English message in snake case) so the app shows it in
+Vietnamese; `message` is English, `args` fill its `{0}`, `{1}`.
 
 ## Settings on the server
 

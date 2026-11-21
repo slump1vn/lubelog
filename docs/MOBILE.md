@@ -34,10 +34,28 @@ the TWA app instead of replacing it.
 - **Giao dịch**: all joint-account transactions grouped by day, older pages load while scrolling
   (`nextCursor`), pull to refresh.
 - **Ngân sách**: the plan from `GET /api/v1/finance/budget` (paydays and where the money goes, funds and
-  limits, debts). Editing stays on the website until phase 2.
+  limits, debts).
 - **Offline**: each screen keeps its last answer encrypted on the phone (same store as the refresh
   token) and shows it at once, then refreshes; without a connection a note says how old the numbers are.
   Signing out, or the server ending the sign-in, deletes these snapshots.
+
+## What phase 2 adds (writing from the phone)
+
+- **Đối soát** (Thêm → Đối soát, or "Ghi rõ các khoản này" on Tổng quan): the balance changes the bank
+  never reported as a transaction. Tap one to say what it was (amount, date, category, note); swipe an
+  entry made by hand to delete it. Each entry carries its own `Idempotency-Key`, so a retry after a
+  dropped connection never adds it twice.
+- **Chụp hóa đơn** (on Đối soát): photo of a receipt or a transfer, the home AI reads amount and date,
+  the family picks which gap it is, and the entry form opens filled in. If the bank already reported the
+  payment, the app says so. Photos are made smaller on the phone (2000 px) and are not stored.
+- **Đồng bộ ngay** (the ⟳ button on Tổng quan and Giao dịch): asks SePay for new transactions now.
+- **Sửa ngân sách** (✎ on Ngân sách): amounts, days, limits and debt balances, with live sums of what
+  each payday and fund still has to give out. Adding or removing funds, incomes and debts stays on the
+  website. When the partner saved first, the app loads their version instead of overwriting it.
+- **Nhãn thực phẩm** (Thêm): 1 to 3 photos, check the numbers the AI read (uncertain ones are marked),
+  then the same rating as the website, saved to the household history.
+- **Thiết bị đang đăng nhập** (Thêm): every phone and browser signed in to the account; sign others out.
+- Server messages arrive as codes and are shown in Vietnamese (`lib/shared/issues.dart`).
 
 ## Working on the code
 

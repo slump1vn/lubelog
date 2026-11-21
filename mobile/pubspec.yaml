@@ -44,6 +44,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   device_info_plus: ^13.3.0
+  image_picker: ^1.2.4
 
 dev_dependencies:
   flutter_test:

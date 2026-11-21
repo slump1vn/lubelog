@@ -7,6 +7,7 @@ import '../../data/finance_providers.dart';
 import '../../shared/dates.dart';
 import '../../shared/widgets.dart';
 import 'transaction_tile.dart';
+import '../home/sync_button.dart';
 
 class TransactionsPage extends ConsumerStatefulWidget {
   const TransactionsPage({super.key});
@@ -40,7 +41,10 @@ class _TransactionsPageState extends ConsumerState<TransactionsPage> {
     final notifier = ref.read(transactionsProvider.notifier);
     final now = ref.watch(nowProvider)();
     return Scaffold(
-      appBar: AppBar(title: const Text('Giao dịch')),
+      appBar: AppBar(
+        title: const Text('Giao dịch'),
+        actions: const [SyncButton()],
+      ),
       body: RefreshIndicator(
         onRefresh: notifier.refresh,
         child: switch (async) {
