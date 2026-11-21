@@ -49,3 +49,9 @@ flutter run --dart-define=SOITHO_SERVER=http://192.168.100.121:8080   # another 
 
 When the server's API changes, update `wwwroot/api/openapi-v1.json`, then run
 `dart run swagger_parser` in `mobile/` and commit the result. CI fails when they disagree.
+
+## Known pitfalls
+
+- `MainActivity` must not have `android:taskAffinity=""` (the Flutter template adds it). With it, the
+  browser's redirect to `vn.digifusion.soitho:/oauth/callback` never returns to the app after **Cho phép**
+  ([flutter_appauth issue 503](https://github.com/MaikuB/flutter_appauth/issues/503)).
