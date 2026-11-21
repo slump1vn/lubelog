@@ -15,12 +15,23 @@ namespace CarCareTracker.Controllers
         private readonly IUserLogic _userLogic;
         private readonly IAiLogic _aiLogic;
         private readonly IConfigHelper _config;
-        public AiController(IVehicleDataAccess dataAccess, IUserLogic userLogic, IAiLogic aiLogic, IConfigHelper config)
+        private readonly IAssistantLogic _assistant;
+        private readonly AssistantThrottle _throttle;
+        public AiController(IVehicleDataAccess dataAccess, IUserLogic userLogic, IAiLogic aiLogic, IConfigHelper config, IAssistantLogic assistant, AssistantThrottle throttle)
         {
             _dataAccess = dataAccess;
             _userLogic = userLogic;
             _aiLogic = aiLogic;
             _config = config;
+            _assistant = assistant;
+            _throttle = throttle;
+        }
+        //writes come from the page's own scripts, which send this header; a cross-site form cannot.
+        private bool FromPageScript => Request.Headers["X-Requested-With"] == "XMLHttpRequest";
+        private IActionResult TooFast()
+        {
+            Response.Headers.RetryAfter = ((int)AssistantThrottle.Window.TotalSeconds).ToString();
+            return StatusCode(StatusCodes.Status429TooManyRequests, new AssistantReply { Kind = "error", Text = "Bạn gửi nhanh quá, đợi một phút rồi thử lại nhé." });
         }
         private int GetUserID()
         {
@@ -35,23 +46,60 @@ namespace CarCareTracker.Controllers
             }
             return vehicles;
         }
+        /// <summary>The chat panel behind the floating button.</summary>
         [HttpGet]
         public IActionResult Assistant()
         {
-            ViewBag.ModelConfigured = _aiLogic.ModelConfigured;
-            return PartialView("_Assistant", GetUserVehicles());
+            var vehicles = GetUserVehicles();
+            return PartialView("_Assistant", new AssistantPanelViewModel
+            {
+                Vehicles = vehicles,
+                ModelConfigured = _aiLogic.ModelConfigured,
+                Suggestions = _assistant.Suggestions(vehicles.Any())
+            });
+        }
+        [HttpGet]
+        [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
+        public IActionResult History(int before = 0)
+        {
+            return Json(_assistant.History(GetUserID(), before, AssistantRules.HistoryPageSize));
+        }
+        [HttpPost]
+        public IActionResult ClearHistory()
+        {
+            if (!FromPageScript)
+            {
+                return BadRequest();
+            }
+            _assistant.ClearHistory(GetUserID());
+            return Json(OperationResponse.Succeed());
         }
         [HttpPost]
         public async Task<IActionResult> Chat(string message)
         {
-            var result = await _aiLogic.ProcessMessage(message, GetUserVehicles(), _config.GetUserConfig(User));
-            return Json(result);
+            if (!FromPageScript)
+            {
+                return BadRequest();
+            }
+            if (!_throttle.TryAcquire(GetUserID(), DateTime.UtcNow))
+            {
+                return TooFast();
+            }
+            return Json(await _assistant.Chat(GetUserID(), message, GetUserVehicles(), _config.GetUserConfig(User)));
         }
+        /// <summary>A photo already uploaded to the temp folder; hint "food" reads it as a food label.</summary>
         [HttpPost]
-        public async Task<IActionResult> Image(string location, string name)
+        public async Task<IActionResult> Image(string location, string name, string? hint)
         {
-            var result = await _aiLogic.ProcessImage(location, name, GetUserVehicles(), _config.GetUserConfig(User));
-            return Json(result);
+            if (!FromPageScript)
+            {
+                return BadRequest();
+            }
+            if (!_throttle.TryAcquire(GetUserID(), DateTime.UtcNow))
+            {
+                return TooFast();
+            }
+            return Json(await _assistant.Photo(GetUserID(), location, name, hint, GetUserVehicles(), _config.GetUserConfig(User)));
         }
         [HttpPost]
         public IActionResult AttachPayment([FromBody] AiAttachPaymentRequest request)

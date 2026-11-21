@@ -952,3 +952,58 @@ html[data-bs-theme="dark"] .swal2-validation-message {
 .lubelogger-mobile-nav [data-module-switch].active {
     font-weight: 600;
 }
+
+/* AI assistant: floating button and chat panel */
+.assistant-launcher {
+    position: fixed;
+    right: calc(1rem + env(safe-area-inset-right, 0px));
+    bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+    width: 3.5rem;
+    height: 3.5rem;
+    z-index: 1040;
+    font-size: 1.5rem;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.assistant-launcher.assistant-open {
+    visibility: hidden;
+}
+.assistant-panel.offcanvas-end {
+    width: min(440px, 100vw);
+}
+.assistant-panel .offcanvas-body {
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+}
+.assistant-bubble {
+    max-width: 88%;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+.assistant-facts {
+    font-size: .875rem;
+}
+.assistant-facts dt {
+    font-weight: normal;
+    color: var(--bs-secondary-color);
+}
+.assistant-facts dd {
+    margin-bottom: .25rem;
+    font-weight: 600;
+    text-align: right;
+}
+@media (max-width: 575.98px) {
+    .assistant-panel.offcanvas-end {
+        width: 100vw;
+    }
+}
+@media print {
+    .assistant-launcher, .assistant-panel {
+        display: none !important;
+    }
+}
+/* room under the last card so the floating button never hides it */
+body:has(#assistantLauncher) .lubelogger-body-container {
+    padding-bottom: 5.5rem;
+}

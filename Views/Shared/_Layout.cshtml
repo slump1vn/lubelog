@@ -184,6 +184,10 @@
         </main>
     </div>
     @await RenderSectionAsync("Footer", required: false)
+    @if (User.Identity?.IsAuthenticated == true && !(ViewData["HideAssistant"] is true))
+    {
+        <partial name="_AssistantLauncher" />
+    }
 </body>
 </html>
 @if (useSystemColorMode)

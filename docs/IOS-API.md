@@ -39,8 +39,14 @@ The contract is [`wwwroot/api/openapi-v1.json`](../wwwroot/api/openapi-v1.json),
 | `POST /api/v1/food/read` | reads 1 to 3 label photos (multipart `files`) with the home AI; photos are not stored |
 | `POST /api/v1/food/analyze` | rates a checked reading; `save: true` adds it to the household history |
 | `GET /api/v1/food/scans`, `GET /api/v1/food/scans/{id}` | saved label scans, with the caller's own allergy marks |
+| `GET /api/v1/assistant/suggestions` | starter questions for the chat, and whether the home AI is on |
+| `GET /api/v1/assistant/messages?before=&limit=` | the caller's own chat history (kept 30 days), oldest first per page |
+| `POST /api/v1/assistant/messages` | `{ "text": "..." }`: one question or vehicle log entry; returns an answer |
+| `DELETE /api/v1/assistant/messages` | deletes the caller's chat history |
+| `POST /api/v1/assistant/photo` | multipart `file` (+ optional `hint=food`): receipt, transfer or food label |
+| `POST /api/v1/assistant/drafts`, `POST /api/v1/assistant/payments` | save a checked vehicle draft / mark a record paid from an answer |
 
-The two food `POST` calls need the `Authorization: Bearer` header (a browser cookie alone is refused with 403). See [FOOD-LABEL.md](FOOD-LABEL.md).
+The food `POST` calls and every assistant call that sends something need the `Authorization: Bearer` header (a browser cookie alone is refused with 403). See [FOOD-LABEL.md](FOOD-LABEL.md) and [ASSISTANT.md](ASSISTANT.md).
 
 Answers are never cached. Errors are RFC 9457 problem details (`application/problem+json`).
 

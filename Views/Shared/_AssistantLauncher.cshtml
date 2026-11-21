@@ -1,0 +1,26 @@
+@using CarCareTracker.Helper
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+    string T(string text) => translator.Translate(userLanguage, text);
+}
+@* Floating chat button, on every signed-in page. The panel is a Bootstrap offcanvas: it traps focus, closes on Esc and returns focus to the button. *@
+<button type="button" id="assistantLauncher" class="btn btn-primary rounded-circle shadow assistant-launcher hideOnPrint" data-bs-toggle="offcanvas" data-bs-target="#assistantPanel" aria-controls="assistantPanel" title="@T("AI assistant")" aria-label="@T("AI assistant")">
+    <i class="bi bi-chat-dots-fill" aria-hidden="true"></i>
+</button>
+<div class="offcanvas offcanvas-end assistant-panel hideOnPrint" tabindex="-1" id="assistantPanel" aria-labelledby="assistantPanelTitle" data-bs-scroll="true">
+    <div class="offcanvas-header border-bottom py-2">
+        <h5 class="offcanvas-title" id="assistantPanelTitle"><i class="bi bi-stars me-2" aria-hidden="true"></i>@T("AI assistant")</h5>
+        <div class="d-flex align-items-center gap-1">
+            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearAssistantHistory()" title="@T("Delete chat history")" aria-label="@T("Delete chat history")"><i class="bi bi-trash3" aria-hidden="true"></i></button>
+            <button type="button" class="btn-close ms-1" data-bs-dismiss="offcanvas" aria-label="@T("Close")"></button>
+        </div>
+    </div>
+    <div class="offcanvas-body p-0" id="assistantPanelBody">
+        <div class="text-center text-body-secondary p-4"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>@T("Loading")</div>
+    </div>
+</div>
+<span id="assistantClearConfirm" class="d-none">@T("Delete the whole chat history?")</span>
+<span id="assistantFoodHandoffError" class="d-none">@T("Open Family Finance to check this label")</span>
+<script src="~/js/assistant.js" asp-append-version="true"></script>
