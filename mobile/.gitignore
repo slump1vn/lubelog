@@ -46,3 +46,6 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# The repository root ignores data/ (server data); the app code lives in lib/data.
+!lib/data/
