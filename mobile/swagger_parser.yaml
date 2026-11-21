@@ -1,0 +1,11 @@
+# Generates lib/api/generated from the server's OpenAPI contract.
+# Run after the contract changes: dart run swagger_parser
+swagger_parser:
+  schema_path: ../wwwroot/api/openapi-v1.json
+  output_directory: lib/api/generated
+  generation:
+    root_api_class_name: SoithoApi
+    http_client: dio
+    serializer: plain
+    unknown_enum_values: preserve
+    generate_docs: false

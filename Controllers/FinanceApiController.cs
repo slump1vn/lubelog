@@ -67,14 +67,14 @@ namespace CarCareTracker.Controllers
         }
         /// <summary>The household budget: paydays, funds, limits and debts. 404 until it is set up on the website.</summary>
         [HttpGet("finance/budget")]
-        public ActionResult<BudgetProfile> Budget()
+        public ActionResult<BudgetDto> Budget()
         {
             var profile = _budgetLogic.GetProfile(UserId);
             if (profile == null)
             {
                 return Problem(statusCode: StatusCodes.Status404NotFound, title: "No budget yet", detail: "Set up the budget on the website first.");
             }
-            return profile;
+            return FinanceApiRules.ToDto(profile);
         }
     }
 }
