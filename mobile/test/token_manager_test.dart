@@ -69,7 +69,9 @@ void main() {
     );
     expect(
       () => tokens.exchangeCode(code: 'x', codeVerifier: 'v' * 43),
-      throwsA(isA<OAuthException>().having((e) => e.error, 'error', 'invalid_grant')),
+      throwsA(
+        isA<OAuthException>().having((e) => e.error, 'error', 'invalid_grant'),
+      ),
     );
   });
 
@@ -82,7 +84,11 @@ void main() {
     final sent = form(server.requests.last.body);
     expect(sent['grant_type'], 'refresh_token');
     expect(sent['refresh_token'], 'refresh-1');
-    expect(store.token, 'refresh-2', reason: 'rotated refresh token replaces the old one');
+    expect(
+      store.token,
+      'refresh-2',
+      reason: 'rotated refresh token replaces the old one',
+    );
   });
 
   test('concurrent refreshes share one request (a reused refresh token ends the sign-in)', () async {
@@ -102,7 +108,10 @@ void main() {
     server.handler = (_, _) => (status: 400, body: {'error': 'invalid_grant'});
     var signedOut = false;
     tokens.signedOut.listen((_) => signedOut = true);
-    await expectLater(tokens.validAccessToken(), throwsA(isA<SignedOutException>()));
+    await expectLater(
+      tokens.validAccessToken(),
+      throwsA(isA<SignedOutException>()),
+    );
     await Future<void>.delayed(Duration.zero);
     expect(signedOut, isTrue);
     expect(store.token, isNull);

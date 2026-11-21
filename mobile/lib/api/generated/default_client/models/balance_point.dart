@@ -2,23 +2,23 @@
 
 class BalancePoint {
   const BalancePoint({
-    this.date,
-    this.balance,
+    required this.date,
+    required this.balance,
     this.additionalProperties = const {},
   });
 
   factory BalancePoint.fromJson(Map<String, Object?> json) => BalancePoint(
-    date: json.containsKey("date") ? json["date"] as String : null,
-    balance: json.containsKey("balance") ? json["balance"] as int : null,
+    date: json["date"] as String,
+    balance: json["balance"] as int,
     additionalProperties: {
       for (final entry in json.entries)
         if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
     },
   );
 
-  final String? date;
+  final String date;
 
-  final int? balance;
+  final int balance;
 
   static const _knownKeys = <String>{"date", "balance"};
 
@@ -27,7 +27,7 @@ class BalancePoint {
   Map<String, Object?> toJson() => {
     for (final entry in additionalProperties.entries)
       if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    if (this.date != null) "date": this.date,
-    if (this.balance != null) "balance": this.balance,
+    "date": this.date,
+    "balance": this.balance,
   };
 }

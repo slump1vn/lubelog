@@ -77,4 +77,66 @@ namespace CarCareTracker.Models.Api
         /// <summary>Pass as "cursor" to get the next (older) page; null on the last page.</summary>
         public string? NextCursor { get; set; }
     }
+    /// <summary>The household budget plan as the apps show it. The joint account number is left out.</summary>
+    public class BudgetDto
+    {
+        /// <summary>ISO 4217, "VND". Amounts are whole units of it.</summary>
+        public string Currency { get; set; } = "VND";
+        /// <summary>Unplanned spending at or above this needs the other partner's approval.</summary>
+        public long ApprovalThreshold { get; set; }
+        /// <summary>Day of the month a budget cycle starts.</summary>
+        public int CycleStartDay { get; set; }
+        /// <summary>Paydays, earliest day of the month first.</summary>
+        public List<BudgetIncomeDto> Incomes { get; set; } = new();
+        public List<BudgetFundDto> Funds { get; set; } = new();
+        /// <summary>Debts, earliest due day first.</summary>
+        public List<BudgetDebtDto> Debts { get; set; } = new();
+        public DateTime UpdatedAtUtc { get; set; }
+    }
+    public class BudgetIncomeDto
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public long Amount { get; set; }
+        /// <summary>1 to 31; short months use their last day.</summary>
+        public int PayDay { get; set; }
+        /// <summary>Where the money goes, in the order it is moved.</summary>
+        public List<BudgetAllocationDto> Allocations { get; set; } = new();
+    }
+    public class BudgetAllocationDto
+    {
+        public string FundKey { get; set; } = string.Empty;
+        public long Amount { get; set; }
+    }
+    public class BudgetFundDto
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        /// <summary>"shared", "personal", "debt", "emergency" or "savings".</summary>
+        public string Kind { get; set; } = string.Empty;
+        public long MonthlyAmount { get; set; }
+        /// <summary>Target balance for emergency and savings funds; null when there is none.</summary>
+        public long? TargetAmount { get; set; }
+        /// <summary>Owner of a personal fund; null when not a personal fund or not assigned.</summary>
+        public int? OwnerUserId { get; set; }
+        public List<BudgetCategoryDto> Categories { get; set; } = new();
+    }
+    public class BudgetCategoryDto
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public long MonthlyLimit { get; set; }
+    }
+    public class BudgetDebtDto
+    {
+        public string Key { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public long MonthlyPayment { get; set; }
+        public int DueDay { get; set; }
+        /// <summary>Null when the household has not entered it.</summary>
+        public long? RemainingBalance { get; set; }
+        /// <summary>Percent per year; null when unknown.</summary>
+        public decimal? AnnualInterestRate { get; set; }
+        public string FundKey { get; set; } = string.Empty;
+    }
 }

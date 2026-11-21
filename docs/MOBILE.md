@@ -24,8 +24,20 @@ the TWA app instead of replacing it.
   background; the screen is covered in the app switcher.
 - **Signing out** revokes the refresh token on the server (`/oauth/revoke`).
 - Backups and device-to-device transfer are turned off for app data.
-- Bottom tabs Tổng quan, Giao dịch, Ngân sách, Thêm. Tổng quan shows "Xin chào …" from `GET /api/v1/me`
-  to prove the sign-in works; the real screens arrive in phase 1.
+- Bottom tabs Tổng quan, Giao dịch, Ngân sách, Thêm.
+
+## What phase 1 adds (read-only screens)
+
+- **Tổng quan**: joint-account balance and last bank sync, balance per day, money in/out for the budget
+  cycle (5th to 4th) with the part inferred from balance gaps, projected spending, upcoming items, the
+  last transactions.
+- **Giao dịch**: all joint-account transactions grouped by day, older pages load while scrolling
+  (`nextCursor`), pull to refresh.
+- **Ngân sách**: the plan from `GET /api/v1/finance/budget` (paydays and where the money goes, funds and
+  limits, debts). Editing stays on the website until phase 2.
+- **Offline**: each screen keeps its last answer encrypted on the phone (same store as the refresh
+  token) and shows it at once, then refreshes; without a connection a note says how old the numbers are.
+  Signing out, or the server ending the sign-in, deletes these snapshots.
 
 ## Working on the code
 

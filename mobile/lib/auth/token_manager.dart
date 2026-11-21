@@ -73,7 +73,8 @@ class TokenManager {
       'redirect_uri': config.redirectUri,
       'code': code,
       'code_verifier': codeVerifier,
-      if (deviceName != null && deviceName.isNotEmpty) 'device_name': deviceName,
+      if (deviceName != null && deviceName.isNotEmpty)
+        'device_name': deviceName,
     });
     if (body.status != 200) {
       throw OAuthException(

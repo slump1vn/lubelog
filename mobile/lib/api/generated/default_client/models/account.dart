@@ -2,41 +2,46 @@
 
 class Account {
   const Account({
-    this.linked,
-    this.bankName,
-    this.maskedNumber,
-    this.balance,
-    this.lastSyncUtc,
-    this.lastSyncSucceeded,
+    required this.linked,
+    required this.bankName,
+    required this.maskedNumber,
+    required this.balance,
+    required this.lastSyncUtc,
+    required this.lastSyncSucceeded,
     this.additionalProperties = const {},
   });
 
-  factory Account.fromJson(Map<String, Object?> json) => Account(
-    linked: json.containsKey("linked") ? json["linked"] as bool : null,
-    bankName: json.containsKey("bankName") ? json["bankName"] as String : null,
-    maskedNumber: json.containsKey("maskedNumber")
-        ? json["maskedNumber"] as String
-        : null,
-    balance: json.containsKey("balance") ? json["balance"] as int? : null,
-    lastSyncUtc: json.containsKey("lastSyncUtc")
-        ? json["lastSyncUtc"] == null
-              ? null
-              : DateTime.parse(json["lastSyncUtc"] as String).toUtc()
-        : null,
-    lastSyncSucceeded: json.containsKey("lastSyncSucceeded")
-        ? json["lastSyncSucceeded"] as bool?
-        : null,
-    additionalProperties: {
-      for (final entry in json.entries)
-        if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    },
-  );
+  factory Account.fromJson(Map<String, Object?> json) {
+    if (!json.containsKey("balance")) {
+      throw ArgumentError("Missing required property: balance");
+    }
+    if (!json.containsKey("lastSyncUtc")) {
+      throw ArgumentError("Missing required property: lastSyncUtc");
+    }
+    if (!json.containsKey("lastSyncSucceeded")) {
+      throw ArgumentError("Missing required property: lastSyncSucceeded");
+    }
+    return Account(
+      linked: json["linked"] as bool,
+      bankName: json["bankName"] as String,
+      maskedNumber: json["maskedNumber"] as String,
+      balance: json["balance"] as int?,
+      lastSyncUtc: json["lastSyncUtc"] == null
+          ? null
+          : DateTime.parse(json["lastSyncUtc"] as String).toUtc(),
+      lastSyncSucceeded: json["lastSyncSucceeded"] as bool?,
+      additionalProperties: {
+        for (final entry in json.entries)
+          if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
+      },
+    );
+  }
 
-  final bool? linked;
+  final bool linked;
 
-  final String? bankName;
+  final String bankName;
 
-  final String? maskedNumber;
+  final String maskedNumber;
 
   final int? balance;
 
@@ -58,13 +63,11 @@ class Account {
   Map<String, Object?> toJson() => {
     for (final entry in additionalProperties.entries)
       if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    if (this.linked != null) "linked": this.linked,
-    if (this.bankName != null) "bankName": this.bankName,
-    if (this.maskedNumber != null) "maskedNumber": this.maskedNumber,
-    if (this.balance != null) "balance": this.balance,
-    if (this.lastSyncUtc != null)
-      "lastSyncUtc": this.lastSyncUtc?.toUtc().toIso8601String(),
-    if (this.lastSyncSucceeded != null)
-      "lastSyncSucceeded": this.lastSyncSucceeded,
+    "linked": this.linked,
+    "bankName": this.bankName,
+    "maskedNumber": this.maskedNumber,
+    "balance": this.balance,
+    "lastSyncUtc": this.lastSyncUtc?.toUtc().toIso8601String(),
+    "lastSyncSucceeded": this.lastSyncSucceeded,
   };
 }

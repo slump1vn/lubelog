@@ -57,8 +57,9 @@ class LoginPage extends ConsumerWidget {
                     key: const Key('login-button'),
                     onPressed: busy
                         ? null
-                        : () =>
-                              ref.read(authControllerProvider.notifier).signIn(),
+                        : () => ref
+                              .read(authControllerProvider.notifier)
+                              .signIn(),
                     child: Padding(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: busy

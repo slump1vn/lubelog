@@ -7,5 +7,11 @@ import 'app/app.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting('vi_VN');
-  runApp(const ProviderScope(child: SoithoApp()));
+  runApp(
+    ProviderScope(
+      // Screens refresh on pull and when opened; no silent retry loops.
+      retry: (_, _) => null,
+      child: const SoithoApp(),
+    ),
+  );
 }

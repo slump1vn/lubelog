@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/generated/soitho_api.dart';
 import '../app/providers.dart';
+import '../data/finance_providers.dart';
 import '../lock/app_lock.dart';
 import 'token_manager.dart';
 
@@ -67,6 +68,7 @@ class AuthController extends Notifier<AuthState> {
   AuthState build() {
     final tokens = ref.watch(tokenManagerProvider);
     _sub = tokens.signedOut.listen((_) {
+      unawaited(_forgetData());
       state = const SignedOut(
         message: 'Phiên đăng nhập đã hết hạn. Anh chị đăng nhập lại nhé.',
       );
@@ -118,7 +120,17 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> signOut() async {
     await ref.read(tokenManagerProvider).signOut();
+    await _forgetData();
     state = const SignedOut();
+  }
+
+  /// Nothing of the household's money stays on the phone after signing out.
+  Future<void> _forgetData() async {
+    await ref.read(snapshotCacheProvider).clear();
+    ref
+      ..invalidate(dashboardProvider)
+      ..invalidate(transactionsProvider)
+      ..invalidate(budgetProvider);
   }
 
   Future<void> _loadMe({required bool keepOffline}) async {

@@ -2,59 +2,58 @@
 
 class Cycle {
   const Cycle({
-    this.start,
-    this.end,
-    this.day,
-    this.days,
-    this.moneyIn,
-    this.moneyOut,
-    this.unrecordedIn,
-    this.unrecordedOut,
-    this.net,
-    this.projectedOut,
+    required this.start,
+    required this.end,
+    required this.day,
+    required this.days,
+    required this.moneyIn,
+    required this.moneyOut,
+    required this.unrecordedIn,
+    required this.unrecordedOut,
+    required this.net,
+    required this.projectedOut,
     this.additionalProperties = const {},
   });
 
-  factory Cycle.fromJson(Map<String, Object?> json) => Cycle(
-    start: json.containsKey("start") ? json["start"] as String : null,
-    end: json.containsKey("end") ? json["end"] as String : null,
-    day: json.containsKey("day") ? json["day"] as int : null,
-    days: json.containsKey("days") ? json["days"] as int : null,
-    moneyIn: json.containsKey("moneyIn") ? json["moneyIn"] as int : null,
-    moneyOut: json.containsKey("moneyOut") ? json["moneyOut"] as int : null,
-    unrecordedIn: json.containsKey("unrecordedIn")
-        ? json["unrecordedIn"] as int
-        : null,
-    unrecordedOut: json.containsKey("unrecordedOut")
-        ? json["unrecordedOut"] as int
-        : null,
-    net: json.containsKey("net") ? json["net"] as int : null,
-    projectedOut: json.containsKey("projectedOut")
-        ? json["projectedOut"] as int?
-        : null,
-    additionalProperties: {
-      for (final entry in json.entries)
-        if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    },
-  );
+  factory Cycle.fromJson(Map<String, Object?> json) {
+    if (!json.containsKey("projectedOut")) {
+      throw ArgumentError("Missing required property: projectedOut");
+    }
+    return Cycle(
+      start: json["start"] as String,
+      end: json["end"] as String,
+      day: json["day"] as int,
+      days: json["days"] as int,
+      moneyIn: json["moneyIn"] as int,
+      moneyOut: json["moneyOut"] as int,
+      unrecordedIn: json["unrecordedIn"] as int,
+      unrecordedOut: json["unrecordedOut"] as int,
+      net: json["net"] as int,
+      projectedOut: json["projectedOut"] as int?,
+      additionalProperties: {
+        for (final entry in json.entries)
+          if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
+      },
+    );
+  }
 
-  final String? start;
+  final String start;
 
-  final String? end;
+  final String end;
 
-  final int? day;
+  final int day;
 
-  final int? days;
+  final int days;
 
-  final int? moneyIn;
+  final int moneyIn;
 
-  final int? moneyOut;
+  final int moneyOut;
 
-  final int? unrecordedIn;
+  final int unrecordedIn;
 
-  final int? unrecordedOut;
+  final int unrecordedOut;
 
-  final int? net;
+  final int net;
 
   final int? projectedOut;
 
@@ -76,15 +75,15 @@ class Cycle {
   Map<String, Object?> toJson() => {
     for (final entry in additionalProperties.entries)
       if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    if (this.start != null) "start": this.start,
-    if (this.end != null) "end": this.end,
-    if (this.day != null) "day": this.day,
-    if (this.days != null) "days": this.days,
-    if (this.moneyIn != null) "moneyIn": this.moneyIn,
-    if (this.moneyOut != null) "moneyOut": this.moneyOut,
-    if (this.unrecordedIn != null) "unrecordedIn": this.unrecordedIn,
-    if (this.unrecordedOut != null) "unrecordedOut": this.unrecordedOut,
-    if (this.net != null) "net": this.net,
-    if (this.projectedOut != null) "projectedOut": this.projectedOut,
+    "start": this.start,
+    "end": this.end,
+    "day": this.day,
+    "days": this.days,
+    "moneyIn": this.moneyIn,
+    "moneyOut": this.moneyOut,
+    "unrecordedIn": this.unrecordedIn,
+    "unrecordedOut": this.unrecordedOut,
+    "net": this.net,
+    "projectedOut": this.projectedOut,
   };
 }

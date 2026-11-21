@@ -70,20 +70,42 @@ void main() {
   test('a second 401 is passed on, not looped', () async {
     await api.get<Object?>('/api/v1/me');
     server.handler = (req, body) => req.uri.path == '/oauth/token'
-        ? (status: 200, body: {'access_token': 'x', 'expires_in': 900, 'refresh_token': 'y'})
+        ? (
+            status: 200,
+            body: {
+              'access_token': 'x',
+              'expires_in': 900,
+              'refresh_token': 'y',
+            },
+          )
         : (status: 401, body: null);
     await expectLater(
       api.get<Object?>('/api/v1/me'),
-      throwsA(isA<DioException>().having((e) => e.response?.statusCode, 'status', 401)),
+      throwsA(
+        isA<DioException>().having(
+          (e) => e.response?.statusCode,
+          'status',
+          401,
+        ),
+      ),
     );
   });
 
-  test('without a sign-in the call fails as signed out, nothing is sent', () async {
-    store.token = null;
-    await expectLater(
-      api.get<Object?>('/api/v1/me'),
-      throwsA(isA<DioException>().having((e) => e.error, 'error', isA<SignedOutException>())),
-    );
-    expect(server.requests, isEmpty);
-  });
+  test(
+    'without a sign-in the call fails as signed out, nothing is sent',
+    () async {
+      store.token = null;
+      await expectLater(
+        api.get<Object?>('/api/v1/me'),
+        throwsA(
+          isA<DioException>().having(
+            (e) => e.error,
+            'error',
+            isA<SignedOutException>(),
+          ),
+        ),
+      );
+      expect(server.requests, isEmpty);
+    },
+  );
 }

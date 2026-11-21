@@ -26,6 +26,50 @@ namespace CarCareTracker.Logic
             Content = x.Content,
             Reference = x.Reference
         };
+        public static string FundKind(FundKind kind) => kind switch
+        {
+            Models.FundKind.Personal => "personal",
+            Models.FundKind.Debt => "debt",
+            Models.FundKind.Emergency => "emergency",
+            Models.FundKind.Savings => "savings",
+            _ => "shared"
+        };
+        /// <summary>The budget plan for the apps: no account number, no internal ids, zeros as null where 0 means "none".</summary>
+        public static BudgetDto ToDto(BudgetProfile profile) => new()
+        {
+            Currency = profile.Currency,
+            ApprovalThreshold = profile.ApprovalThreshold,
+            CycleStartDay = profile.CycleStartDay,
+            Incomes = profile.Incomes.OrderBy(x => x.PayDay).Select(x => new BudgetIncomeDto
+            {
+                Key = x.Key,
+                Name = x.Name,
+                Amount = x.Amount,
+                PayDay = x.PayDay,
+                Allocations = x.Allocations.OrderBy(a => a.Order).Select(a => new BudgetAllocationDto { FundKey = a.FundKey, Amount = a.Amount }).ToList()
+            }).ToList(),
+            Funds = profile.Funds.Select(x => new BudgetFundDto
+            {
+                Key = x.Key,
+                Name = x.Name,
+                Kind = FundKind(x.Kind),
+                MonthlyAmount = x.MonthlyAmount,
+                TargetAmount = x.TargetAmount > 0 ? x.TargetAmount : null,
+                OwnerUserId = x.Kind == Models.FundKind.Personal && x.OwnerUserId != 0 ? x.OwnerUserId : null,
+                Categories = x.Categories.Select(c => new BudgetCategoryDto { Key = c.Key, Name = c.Name, MonthlyLimit = c.MonthlyLimit }).ToList()
+            }).ToList(),
+            Debts = profile.Debts.OrderBy(x => x.DueDay).Select(x => new BudgetDebtDto
+            {
+                Key = x.Key,
+                Name = x.Name,
+                MonthlyPayment = x.MonthlyPayment,
+                DueDay = x.DueDay,
+                RemainingBalance = x.RemainingBalance,
+                AnnualInterestRate = x.AnnualInterestRate,
+                FundKey = x.FundKey
+            }).ToList(),
+            UpdatedAtUtc = DateTime.SpecifyKind(profile.UpdatedAtUtc, DateTimeKind.Utc)
+        };
         public static DashboardDto ToDto(FinanceDashboardViewModel model, int recentCount = 8)
         {
             var account = model.Account;

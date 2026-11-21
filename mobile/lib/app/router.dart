@@ -5,8 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../auth/auth_controller.dart';
 import '../features/home/home_shell.dart';
 import '../features/home/more_page.dart';
-import '../features/home/overview_page.dart';
-import '../features/home/placeholder_page.dart';
+import '../features/budget/budget_page.dart';
+import '../features/overview/overview_page.dart';
+import '../features/transactions/transactions_page.dart';
 import '../features/login/login_page.dart';
 
 /// Lets go_router re-run its redirect when the sign-in changes.
@@ -48,16 +49,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: '/transactions',
-                builder: (_, _) => const PlaceholderPage(title: 'Giao dịch'),
+                builder: (_, _) => const TransactionsPage(),
               ),
             ],
           ),
           StatefulShellBranch(
             routes: [
-              GoRoute(
-                path: '/budget',
-                builder: (_, _) => const PlaceholderPage(title: 'Ngân sách'),
-              ),
+              GoRoute(path: '/budget', builder: (_, _) => const BudgetPage()),
             ],
           ),
           StatefulShellBranch(

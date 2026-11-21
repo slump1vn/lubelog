@@ -4,49 +4,48 @@ import 'direction.dart';
 
 class Transaction {
   const Transaction({
-    this.id,
-    this.occurredAtUtc,
-    this.direction,
-    this.amount,
-    this.balance,
-    this.content,
-    this.reference,
+    required this.id,
+    required this.occurredAtUtc,
+    required this.direction,
+    required this.amount,
+    required this.balance,
+    required this.content,
+    required this.reference,
     this.additionalProperties = const {},
   });
 
-  factory Transaction.fromJson(Map<String, Object?> json) => Transaction(
-    id: json.containsKey("id") ? json["id"] as int : null,
-    occurredAtUtc: json.containsKey("occurredAtUtc")
-        ? DateTime.parse(json["occurredAtUtc"] as String).toUtc()
-        : null,
-    direction: json.containsKey("direction")
-        ? Direction.fromJson(json["direction"])
-        : null,
-    amount: json.containsKey("amount") ? json["amount"] as int : null,
-    balance: json.containsKey("balance") ? json["balance"] as int? : null,
-    content: json.containsKey("content") ? json["content"] as String : null,
-    reference: json.containsKey("reference")
-        ? json["reference"] as String
-        : null,
-    additionalProperties: {
-      for (final entry in json.entries)
-        if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    },
-  );
+  factory Transaction.fromJson(Map<String, Object?> json) {
+    if (!json.containsKey("balance")) {
+      throw ArgumentError("Missing required property: balance");
+    }
+    return Transaction(
+      id: json["id"] as int,
+      occurredAtUtc: DateTime.parse(json["occurredAtUtc"] as String).toUtc(),
+      direction: Direction.fromJson(json["direction"]),
+      amount: json["amount"] as int,
+      balance: json["balance"] as int?,
+      content: json["content"] as String,
+      reference: json["reference"] as String,
+      additionalProperties: {
+        for (final entry in json.entries)
+          if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
+      },
+    );
+  }
 
-  final int? id;
+  final int id;
 
-  final DateTime? occurredAtUtc;
+  final DateTime occurredAtUtc;
 
-  final Direction? direction;
+  final Direction direction;
 
-  final int? amount;
+  final int amount;
 
   final int? balance;
 
-  final String? content;
+  final String content;
 
-  final String? reference;
+  final String reference;
 
   static const _knownKeys = <String>{
     "id",
@@ -63,13 +62,12 @@ class Transaction {
   Map<String, Object?> toJson() => {
     for (final entry in additionalProperties.entries)
       if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    if (this.id != null) "id": this.id,
-    if (this.occurredAtUtc != null)
-      "occurredAtUtc": this.occurredAtUtc?.toUtc().toIso8601String(),
-    if (this.direction != null) "direction": this.direction?.toJson(),
-    if (this.amount != null) "amount": this.amount,
-    if (this.balance != null) "balance": this.balance,
-    if (this.content != null) "content": this.content,
-    if (this.reference != null) "reference": this.reference,
+    "id": this.id,
+    "occurredAtUtc": this.occurredAtUtc.toUtc().toIso8601String(),
+    "direction": this.direction.toJson(),
+    "amount": this.amount,
+    "balance": this.balance,
+    "content": this.content,
+    "reference": this.reference,
   };
 }

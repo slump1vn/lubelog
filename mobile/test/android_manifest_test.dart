@@ -3,7 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  final manifest = File('android/app/src/main/AndroidManifest.xml').readAsStringSync();
+  final manifest = File('android/app/src/main/AndroidManifest.xml')
+      .readAsStringSync();
 
   test('MainActivity keeps the default task affinity, so the sign-in returns to the app', () {
     // taskAffinity="" stops AppAuth's redirect from coming back after "Cho phép".
@@ -22,7 +23,9 @@ void main() {
     final gradle = File('android/app/build.gradle.kts').readAsStringSync();
     expect(
       gradle,
-      contains('manifestPlaceholders["appAuthRedirectScheme"] = "vn.digifusion.soitho"'),
+      contains(
+        'manifestPlaceholders["appAuthRedirectScheme"] = "vn.digifusion.soitho"',
+      ),
     );
   });
 }

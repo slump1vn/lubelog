@@ -31,10 +31,7 @@ class HomeShell extends StatelessWidget {
             selectedIcon: Icon(Icons.pie_chart),
             label: 'Ngân sách',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.more_horiz),
-            label: 'Thêm',
-          ),
+          NavigationDestination(icon: Icon(Icons.more_horiz), label: 'Thêm'),
         ],
       ),
     );

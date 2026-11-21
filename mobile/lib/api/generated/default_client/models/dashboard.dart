@@ -8,57 +8,45 @@ import 'upcoming.dart';
 
 class Dashboard {
   const Dashboard({
-    this.today,
-    this.account,
-    this.cycle,
-    this.balanceHistory,
-    this.upcoming,
-    this.recent,
+    required this.today,
+    required this.account,
+    required this.cycle,
+    required this.balanceHistory,
+    required this.upcoming,
+    required this.recent,
     this.additionalProperties = const {},
   });
 
   factory Dashboard.fromJson(Map<String, Object?> json) => Dashboard(
-    today: json.containsKey("today") ? json["today"] as String : null,
-    account: json.containsKey("account")
-        ? Account.fromJson(json["account"] as Map<String, Object?>)
-        : null,
-    cycle: json.containsKey("cycle")
-        ? Cycle.fromJson(json["cycle"] as Map<String, Object?>)
-        : null,
-    balanceHistory: json.containsKey("balanceHistory")
-        ? (json["balanceHistory"] as List<Object?>)
-              .map(
-                (item) => BalancePoint.fromJson(item as Map<String, Object?>),
-              )
-              .toList()
-        : null,
-    upcoming: json.containsKey("upcoming")
-        ? (json["upcoming"] as List<Object?>)
-              .map((item) => Upcoming.fromJson(item as Map<String, Object?>))
-              .toList()
-        : null,
-    recent: json.containsKey("recent")
-        ? (json["recent"] as List<Object?>)
-              .map((item) => Transaction.fromJson(item as Map<String, Object?>))
-              .toList()
-        : null,
+    today: json["today"] as String,
+    account: Account.fromJson(json["account"] as Map<String, Object?>),
+    cycle: Cycle.fromJson(json["cycle"] as Map<String, Object?>),
+    balanceHistory: (json["balanceHistory"] as List<Object?>)
+        .map((item) => BalancePoint.fromJson(item as Map<String, Object?>))
+        .toList(),
+    upcoming: (json["upcoming"] as List<Object?>)
+        .map((item) => Upcoming.fromJson(item as Map<String, Object?>))
+        .toList(),
+    recent: (json["recent"] as List<Object?>)
+        .map((item) => Transaction.fromJson(item as Map<String, Object?>))
+        .toList(),
     additionalProperties: {
       for (final entry in json.entries)
         if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
     },
   );
 
-  final String? today;
+  final String today;
 
-  final Account? account;
+  final Account account;
 
-  final Cycle? cycle;
+  final Cycle cycle;
 
-  final List<BalancePoint>? balanceHistory;
+  final List<BalancePoint> balanceHistory;
 
-  final List<Upcoming>? upcoming;
+  final List<Upcoming> upcoming;
 
-  final List<Transaction>? recent;
+  final List<Transaction> recent;
 
   static const _knownKeys = <String>{
     "today",
@@ -74,16 +62,11 @@ class Dashboard {
   Map<String, Object?> toJson() => {
     for (final entry in additionalProperties.entries)
       if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    if (this.today != null) "today": this.today,
-    if (this.account != null) "account": this.account?.toJson(),
-    if (this.cycle != null) "cycle": this.cycle?.toJson(),
-    if (this.balanceHistory != null)
-      "balanceHistory": this.balanceHistory
-          ?.map((item) => item.toJson())
-          .toList(),
-    if (this.upcoming != null)
-      "upcoming": this.upcoming?.map((item) => item.toJson()).toList(),
-    if (this.recent != null)
-      "recent": this.recent?.map((item) => item.toJson()).toList(),
+    "today": this.today,
+    "account": this.account.toJson(),
+    "cycle": this.cycle.toJson(),
+    "balanceHistory": this.balanceHistory.map((item) => item.toJson()).toList(),
+    "upcoming": this.upcoming.map((item) => item.toJson()).toList(),
+    "recent": this.recent.map((item) => item.toJson()).toList(),
   };
 }

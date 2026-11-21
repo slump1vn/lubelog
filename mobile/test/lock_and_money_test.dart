@@ -31,7 +31,10 @@ void main() {
     });
 
     test('never locks without a background time', () {
-      expect(policy.shouldLockOnResume(wentToBackgroundAt: null, now: t), isFalse);
+      expect(
+        policy.shouldLockOnResume(wentToBackgroundAt: null, now: t),
+        isFalse,
+      );
     });
   });
 

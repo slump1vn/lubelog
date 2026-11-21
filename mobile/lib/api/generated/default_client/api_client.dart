@@ -5,12 +5,12 @@ import 'dart:convert' as convert;
 import 'package:dio/dio.dart'
     show Dio, Options, ResponseType, CancelToken, FormData, MultipartFile;
 
+import 'models/budget.dart' as models show Budget;
 import 'models/dashboard.dart' as models show Dashboard;
 import 'models/food_analyze_request.dart' as models show FoodAnalyzeRequest;
 import 'models/food_analyze_result.dart' as models show FoodAnalyzeResult;
 import 'models/food_read_result.dart' as models show FoodReadResult;
 import 'models/food_scan.dart' as models show FoodScan;
-import 'models/get_budget_response200.dart' as models show GetBudgetResponse200;
 import 'models/me.dart' as models show Me;
 import 'models/transaction_page.dart' as models show TransactionPage;
 
@@ -150,7 +150,7 @@ class ApiClient {
     );
   }
 
-  Future<models.GetBudgetResponse200> getBudget({
+  Future<models.Budget> getBudget({
     Map<String, Object?> extra = const {
       "openapi.servers": [
         {"url": "/"},
@@ -188,9 +188,7 @@ class ApiClient {
       options: _options,
       cancelToken: cancelToken,
     );
-    return models.GetBudgetResponse200.fromJson(
-      response.data as Map<String, Object?>,
-    );
+    return models.Budget.fromJson(response.data as Map<String, Object?>);
   }
 
   Future<models.FoodReadResult> readFoodLabel({

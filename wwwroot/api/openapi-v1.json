@@ -48,7 +48,7 @@
         "summary": "Household budget: paydays, funds, limits and debts",
         "operationId": "getBudget",
         "responses": {
-          "200": { "description": "Budget profile, same shape as the website uses", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "200": { "description": "The budget plan", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } } } },
           "401": { "$ref": "#/components/responses/Unauthorized" },
           "404": { "$ref": "#/components/responses/Problem" }
         }
@@ -256,6 +256,7 @@
       "Direction": { "type": "string", "enum": ["in", "out"] },
       "Account": {
         "type": "object",
+        "required": ["linked", "bankName", "maskedNumber", "balance", "lastSyncUtc", "lastSyncSucceeded"],
         "properties": {
           "linked": { "type": "boolean" },
           "bankName": { "type": "string" },
@@ -267,6 +268,7 @@
       },
       "Cycle": {
         "type": "object",
+        "required": ["start", "end", "day", "days", "moneyIn", "moneyOut", "unrecordedIn", "unrecordedOut", "net", "projectedOut"],
         "properties": {
           "start": { "type": "string", "format": "date" },
           "end": { "type": "string", "format": "date" },
@@ -282,10 +284,12 @@
       },
       "BalancePoint": {
         "type": "object",
+        "required": ["date", "balance"],
         "properties": { "date": { "type": "string", "format": "date" }, "balance": { "type": "integer" } }
       },
       "Upcoming": {
         "type": "object",
+        "required": ["date", "name", "amount", "direction"],
         "properties": {
           "date": { "type": "string", "format": "date" },
           "name": { "type": "string" },
@@ -295,6 +299,7 @@
       },
       "Transaction": {
         "type": "object",
+        "required": ["id", "occurredAtUtc", "direction", "amount", "balance", "content", "reference"],
         "properties": {
           "id": { "type": "integer" },
           "occurredAtUtc": { "type": "string", "format": "date-time" },
@@ -307,6 +312,7 @@
       },
       "Dashboard": {
         "type": "object",
+        "required": ["today", "account", "cycle", "balanceHistory", "upcoming", "recent"],
         "properties": {
           "today": { "type": "string", "format": "date" },
           "account": { "$ref": "#/components/schemas/Account" },
@@ -318,9 +324,76 @@
       },
       "TransactionPage": {
         "type": "object",
+        "required": ["items", "nextCursor"],
         "properties": {
           "items": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } },
           "nextCursor": { "type": ["string", "null"] }
+        }
+      },
+      "FundKind": {
+        "type": "string",
+        "enum": ["shared", "personal", "debt", "emergency", "savings"]
+      },
+      "Budget": {
+        "type": "object",
+        "description": "The household budget plan. The joint account number is not included.",
+        "required": ["currency", "approvalThreshold", "cycleStartDay", "incomes", "funds", "debts", "updatedAtUtc"],
+        "properties": {
+          "currency": { "type": "string", "examples": ["VND"] },
+          "approvalThreshold": { "type": "integer", "description": "Unplanned spending at or above this needs the other partner's approval." },
+          "cycleStartDay": { "type": "integer", "minimum": 1, "maximum": 31 },
+          "incomes": { "type": "array", "description": "Earliest payday first.", "items": { "$ref": "#/components/schemas/BudgetIncome" } },
+          "funds": { "type": "array", "items": { "$ref": "#/components/schemas/BudgetFund" } },
+          "debts": { "type": "array", "description": "Earliest due day first.", "items": { "$ref": "#/components/schemas/BudgetDebt" } },
+          "updatedAtUtc": { "type": "string", "format": "date-time" }
+        }
+      },
+      "BudgetIncome": {
+        "type": "object",
+        "description": "A payday and where its money goes, in the order it is moved.",
+        "required": ["key", "name", "amount", "payDay", "allocations"],
+        "properties": {
+          "key": { "type": "string" },
+          "name": { "type": "string" },
+          "amount": { "type": "integer" },
+          "payDay": { "type": "integer", "minimum": 1, "maximum": 31, "description": "Short months use their last day." },
+          "allocations": { "type": "array", "items": { "$ref": "#/components/schemas/BudgetAllocation" } }
+        }
+      },
+      "BudgetAllocation": {
+        "type": "object",
+        "required": ["fundKey", "amount"],
+        "properties": { "fundKey": { "type": "string" }, "amount": { "type": "integer" } }
+      },
+      "BudgetFund": {
+        "type": "object",
+        "required": ["key", "name", "kind", "monthlyAmount", "targetAmount", "ownerUserId", "categories"],
+        "properties": {
+          "key": { "type": "string" },
+          "name": { "type": "string" },
+          "kind": { "$ref": "#/components/schemas/FundKind" },
+          "monthlyAmount": { "type": "integer" },
+          "targetAmount": { "type": ["integer", "null"], "description": "Emergency and savings funds; null when there is none." },
+          "ownerUserId": { "type": ["integer", "null"], "description": "Owner of a personal fund; null otherwise or when not assigned." },
+          "categories": { "type": "array", "items": { "$ref": "#/components/schemas/BudgetCategory" } }
+        }
+      },
+      "BudgetCategory": {
+        "type": "object",
+        "required": ["key", "name", "monthlyLimit"],
+        "properties": { "key": { "type": "string" }, "name": { "type": "string" }, "monthlyLimit": { "type": "integer" } }
+      },
+      "BudgetDebt": {
+        "type": "object",
+        "required": ["key", "name", "monthlyPayment", "dueDay", "remainingBalance", "annualInterestRate", "fundKey"],
+        "properties": {
+          "key": { "type": "string" },
+          "name": { "type": "string" },
+          "monthlyPayment": { "type": "integer" },
+          "dueDay": { "type": "integer", "minimum": 1, "maximum": 31 },
+          "remainingBalance": { "type": ["integer", "null"] },
+          "annualInterestRate": { "type": ["number", "null"], "description": "Percent per year." },
+          "fundKey": { "type": "string" }
         }
       },
       "FoodKind": {

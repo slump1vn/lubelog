@@ -4,31 +4,28 @@ import 'transaction.dart';
 
 class TransactionPage {
   const TransactionPage({
-    this.items,
-    this.nextCursor,
+    required this.items,
+    required this.nextCursor,
     this.additionalProperties = const {},
   });
 
-  factory TransactionPage.fromJson(Map<String, Object?> json) =>
-      TransactionPage(
-        items: json.containsKey("items")
-            ? (json["items"] as List<Object?>)
-                  .map(
-                    (item) =>
-                        Transaction.fromJson(item as Map<String, Object?>),
-                  )
-                  .toList()
-            : null,
-        nextCursor: json.containsKey("nextCursor")
-            ? json["nextCursor"] as String?
-            : null,
-        additionalProperties: {
-          for (final entry in json.entries)
-            if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-        },
-      );
+  factory TransactionPage.fromJson(Map<String, Object?> json) {
+    if (!json.containsKey("nextCursor")) {
+      throw ArgumentError("Missing required property: nextCursor");
+    }
+    return TransactionPage(
+      items: (json["items"] as List<Object?>)
+          .map((item) => Transaction.fromJson(item as Map<String, Object?>))
+          .toList(),
+      nextCursor: json["nextCursor"] as String?,
+      additionalProperties: {
+        for (final entry in json.entries)
+          if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
+      },
+    );
+  }
 
-  final List<Transaction>? items;
+  final List<Transaction> items;
 
   final String? nextCursor;
 
@@ -39,8 +36,7 @@ class TransactionPage {
   Map<String, Object?> toJson() => {
     for (final entry in additionalProperties.entries)
       if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    if (this.items != null)
-      "items": this.items?.map((item) => item.toJson()).toList(),
-    if (this.nextCursor != null) "nextCursor": this.nextCursor,
+    "items": this.items.map((item) => item.toJson()).toList(),
+    "nextCursor": this.nextCursor,
   };
 }

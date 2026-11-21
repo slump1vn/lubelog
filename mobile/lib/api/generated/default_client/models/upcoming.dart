@@ -4,33 +4,31 @@ import 'direction.dart';
 
 class Upcoming {
   const Upcoming({
-    this.date,
-    this.name,
-    this.amount,
-    this.direction,
+    required this.date,
+    required this.name,
+    required this.amount,
+    required this.direction,
     this.additionalProperties = const {},
   });
 
   factory Upcoming.fromJson(Map<String, Object?> json) => Upcoming(
-    date: json.containsKey("date") ? json["date"] as String : null,
-    name: json.containsKey("name") ? json["name"] as String : null,
-    amount: json.containsKey("amount") ? json["amount"] as int : null,
-    direction: json.containsKey("direction")
-        ? Direction.fromJson(json["direction"])
-        : null,
+    date: json["date"] as String,
+    name: json["name"] as String,
+    amount: json["amount"] as int,
+    direction: Direction.fromJson(json["direction"]),
     additionalProperties: {
       for (final entry in json.entries)
         if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
     },
   );
 
-  final String? date;
+  final String date;
 
-  final String? name;
+  final String name;
 
-  final int? amount;
+  final int amount;
 
-  final Direction? direction;
+  final Direction direction;
 
   static const _knownKeys = <String>{"date", "name", "amount", "direction"};
 
@@ -39,9 +37,9 @@ class Upcoming {
   Map<String, Object?> toJson() => {
     for (final entry in additionalProperties.entries)
       if (!_knownKeys.contains(entry.key)) entry.key: entry.value,
-    if (this.date != null) "date": this.date,
-    if (this.name != null) "name": this.name,
-    if (this.amount != null) "amount": this.amount,
-    if (this.direction != null) "direction": this.direction?.toJson(),
+    "date": this.date,
+    "name": this.name,
+    "amount": this.amount,
+    "direction": this.direction.toJson(),
   };
 }
