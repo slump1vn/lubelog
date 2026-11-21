@@ -1,6 +1,14 @@
-# Server side for the iPhone app (phase 0)
+# Server side for the mobile app
 
-This is what the server offers the native iOS app. The app itself lives in `ios/` (phase 1).
+This is what the server offers the Flutter app in `mobile/` (iPhone and Android, see [MOBILE.md](MOBILE.md)).
+
+| Phone | `client_id` | `redirect_uri` |
+|---|---|---|
+| iPhone | `soitho-ios` | `vn.digifusion.finance:/oauth/callback` |
+| Android | `soitho-android` | `vn.digifusion.soitho:/oauth/callback` |
+
+The steps below use the iPhone values; Android is the same with its own pair (Custom Tabs instead of
+`ASWebAuthenticationSession`, Android Keystore instead of the Keychain).
 
 ## Signing in
 

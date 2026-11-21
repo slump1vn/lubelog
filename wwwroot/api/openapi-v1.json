@@ -212,7 +212,7 @@
     "securitySchemes": {
       "oauth": {
         "type": "oauth2",
-        "description": "Public client `soitho-ios`, redirect `vn.digifusion.finance:/oauth/callback`, PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
         "flows": {
           "authorizationCode": {
             "authorizationUrl": "/oauth/authorize",
