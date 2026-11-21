@@ -62,9 +62,6 @@ function bindTabEvent() {
             case "food-tab":
                 loadFood();
                 break;
-            case "assistant-tab":
-                loadAssistant();
-                break;
         }
         let shownTabModule = getAppModuleOfTab(e.target.id);
         if (isAppModule(shownTabModule) && shownTabModule != getStoredAppModule()) {
@@ -97,9 +94,6 @@ function bindTabEvent() {
                     break;
                 case "food-tab":
                     $("#food-tab-pane").html("");
-                    break;
-                case "assistant-tab":
-                    $("#assistant-tab-pane").html("");
                     break;
             }
             $(`.lubelogger-tab #${e.relatedTarget.id}`).removeClass('active');
@@ -990,6 +984,13 @@ function switchAppModule(module) {
 function loadTabFromURL() {
     let module = getStoredAppModule();
     let tabFromURL = getTabNameFromURL(appModuleDefaultTabs[module]);
+    //the assistant used to be a tab; it is now the floating chat button.
+    if (tabFromURL == 'assistant-tab') {
+        tabFromURL = `${appModuleDefaultTabs[module]}-tab`;
+        if (typeof openAssistantPanel === 'function') {
+            openAssistantPanel();
+        }
+    }
     let tabModule = getAppModuleOfTab(tabFromURL);
     if (isAppModule(tabModule)) {
         module = tabModule;

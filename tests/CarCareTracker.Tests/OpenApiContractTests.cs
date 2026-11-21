@@ -39,6 +39,17 @@ namespace CarCareTracker.Tests
         [InlineData(typeof(FoodReadResult), "FoodReadResult")]
         [InlineData(typeof(FoodAnalyzeRequest), "FoodAnalyzeRequest")]
         [InlineData(typeof(FoodAnalyzeResult), "FoodAnalyzeResult")]
+        [InlineData(typeof(AssistantSuggestionsDto), "AssistantSuggestions")]
+        [InlineData(typeof(AssistantFact), "AssistantFact")]
+        [InlineData(typeof(AssistantMessage), "AssistantMessage")]
+        [InlineData(typeof(AssistantHistoryPage), "AssistantHistoryPage")]
+        [InlineData(typeof(AssistantChatRequest), "AssistantChatRequest")]
+        [InlineData(typeof(AssistantReply), "AssistantReply")]
+        [InlineData(typeof(AiDraft), "AiDraft")]
+        [InlineData(typeof(AiPayment), "AiPayment")]
+        [InlineData(typeof(AiPaymentMatch), "AiPaymentMatch")]
+        [InlineData(typeof(AiAttachPaymentRequest), "AiAttachPaymentRequest")]
+        [InlineData(typeof(UploadedFiles), "UploadedFile")]
         public void EveryFieldIsDocumented(Type dto, string schemaName)
         {
             var documented = Schemas().GetProperty(schemaName).GetProperty("properties").EnumerateObject().Select(x => x.Name).ToHashSet();

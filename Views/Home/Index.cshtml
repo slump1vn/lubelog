@@ -10,7 +10,6 @@
 }
 @section Scripts {
     <script src="~/js/garage.js" asp-append-version="true"></script>
-    <script src="~/js/assistant.js" asp-append-version="true"></script>
     <script src="~/js/budget.js" asp-append-version="true"></script>
     <script src="~/js/food.js" asp-append-version="true"></script>
     <script src="~/js/settings.js" asp-append-version="true"></script>
@@ -53,9 +52,6 @@
                     <li data-module="finance" class="nav-item" role="presentation">
                         <button class="nav-link resizable-nav-link" id="food-tab" data-bs-toggle="tab" data-bs-target="#food-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-upc-scan"></i><span class="ms-2">@translator.Translate(userLanguage, "Food labels")</span></button>
                     </li>
-                    <li data-module="shared" class="nav-item" role="presentation">
-                        <button class="nav-link resizable-nav-link" id="assistant-tab" data-bs-toggle="tab" data-bs-target="#assistant-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-chat-dots"></i><span class="ms-2">@translator.Translate(userLanguage, "Assistant")</span></button>
-                    </li>
                     @if (userConfig.ShowCalendar)
                     {
                         <li data-module="vehicles" class="nav-item" role="presentation">
@@ -85,9 +81,6 @@
                             </li>
                             <li data-module="finance" class="nav-item text-truncate" role="presentation">
                                 <button class="nav-link resizable-nav-link" id="food-tab" data-bs-toggle="tab" data-bs-target="#food-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-upc-scan"></i><span class="ms-2">@translator.Translate(userLanguage, "Food labels")</span></button>
-                            </li>
-                            <li data-module="shared" class="nav-item text-truncate" role="presentation">
-                                <button class="nav-link resizable-nav-link" id="assistant-tab" data-bs-toggle="tab" data-bs-target="#assistant-tab-pane" type="button" role="tab" aria-selected="false"><i class="bi bi-chat-dots"></i><span class="ms-2">@translator.Translate(userLanguage, "Assistant")</span></button>
                             </li>
                             @if (userConfig.ShowCalendar)
                             {
@@ -176,9 +169,6 @@
         <li data-module="finance" class="nav-item d-flex" role="presentation">
             <button class="nav-link flex-grow-1 text-start" id="food-tab" data-bs-toggle="tab" data-bs-target="#food-tab-pane" type="button" role="tab"><span class="ms-2 display-3"><i class="bi bi-upc-scan me-2"></i>@translator.Translate(userLanguage, "Food labels")</span></button>
         </li>
-        <li data-module="shared" class="nav-item d-flex" role="presentation">
-            <button class="nav-link flex-grow-1 text-start" id="assistant-tab" data-bs-toggle="tab" data-bs-target="#assistant-tab-pane" type="button" role="tab"><span class="ms-2 display-3"><i class="bi bi-chat-dots me-2"></i>@translator.Translate(userLanguage, "Assistant")</span></button>
-        </li>
         @if(userConfig.ShowCalendar){
             <li data-module="vehicles" class="nav-item d-flex" role="presentation">
                 <button class="nav-link flex-grow-1 text-start" id="calendar-tab" data-bs-toggle="tab" data-bs-target="#calendar-tab-pane" type="button" role="tab"><span class="ms-2 display-3"><i class="bi bi-calendar-week me-2"></i>@translator.Translate(userLanguage, "Calendar")</span></button>
@@ -230,8 +220,6 @@
         <div class="tab-pane fade" id="budget-tab-pane" role="tabpanel" tabindex="0">
         </div>
         <div class="tab-pane fade" id="food-tab-pane" role="tabpanel" tabindex="0">
-        </div>
-        <div class="tab-pane fade" id="assistant-tab-pane" role="tabpanel" tabindex="0">
         </div>
         <div class="tab-pane fade" id="settings-tab-pane" role="tabpanel" tabindex="0">
         </div>
