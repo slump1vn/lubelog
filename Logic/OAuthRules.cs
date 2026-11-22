@@ -15,9 +15,13 @@ namespace CarCareTracker.Logic
         /// <summary>The iPhone app. Its redirect is a private-use scheme in reverse-domain form (RFC 8252 section 7.1).</summary>
         public const string IosClientId = "soitho-ios";
         public const string IosRedirectUri = "vn.digifusion.finance:/oauth/callback";
+        /// <summary>The Flutter app on Android, package vn.digifusion.soitho. Same kind of private-use scheme redirect.</summary>
+        public const string AndroidClientId = "soitho-android";
+        public const string AndroidRedirectUri = "vn.digifusion.soitho:/oauth/callback";
         public static readonly IReadOnlyList<OAuthClient> Clients = new List<OAuthClient>
         {
-            new() { ClientId = IosClientId, Name = "Sói & Thỏ cho iPhone", RedirectUris = { IosRedirectUri } }
+            new() { ClientId = IosClientId, Name = "Sói & Thỏ cho iPhone", RedirectUris = { IosRedirectUri } },
+            new() { ClientId = AndroidClientId, Name = "Sói & Thỏ cho Android", RedirectUris = { AndroidRedirectUri } }
         };
 
         public static OAuthClient? FindClient(string? clientId)

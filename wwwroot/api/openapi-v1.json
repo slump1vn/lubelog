@@ -3,7 +3,7 @@
   "info": {
     "title": "Sói & Thỏ – Family finance API",
     "version": "1.0.0",
-    "description": "Read-only API v1 for the native apps. Sign in with OAuth 2.0 authorization code + PKCE (see /.well-known/oauth-authorization-server) and send the access token as `Authorization: Bearer ...`. Access tokens last 15 minutes; refresh tokens rotate on every use and must be stored in the Keychain. Dates are yyyy-MM-dd Vietnam calendar dates, times are UTC ISO 8601, money is whole VND. Errors are RFC 9457 problem details. Fields are only ever added in v1."
+    "description": "API v1 for the native apps. Sign in with OAuth 2.0 authorization code + PKCE (see /.well-known/oauth-authorization-server) and send the access token as `Authorization: Bearer ...`. Access tokens last 15 minutes; refresh tokens rotate on every use and must be stored in the Keychain. Dates are yyyy-MM-dd Vietnam calendar dates, times are UTC ISO 8601, money is whole VND. Errors are RFC 9457 problem details; a broken rule lists `errors` with a stable `code` the app translates. Writes need the Bearer header; POSTs that create something take an `Idempotency-Key` header, and PUT needs `If-Match` with the ETag from GET. Fields are only ever added in v1."
   },
   "servers": [{ "url": "/" }],
   "security": [{ "oauth": [] }],
@@ -48,8 +48,126 @@
         "summary": "Household budget: paydays, funds, limits and debts",
         "operationId": "getBudget",
         "responses": {
-          "200": { "description": "Budget profile, same shape as the website uses", "content": { "application/json": { "schema": { "type": "object" } } } },
+          "200": { "description": "The budget plan", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } } } },
           "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      },
+      "put": {
+        "summary": "Replace the budget plan (the joint account is kept)",
+        "operationId": "saveBudget",
+        "description": "If-Match must carry the ETag of the budget that was changed. 412 when the partner saved in between: load it again. Sending the same budget again is harmless.",
+        "parameters": [
+          { "name": "If-Match", "in": "header", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } } } },
+        "responses": {
+          "200": { "description": "The saved plan", "headers": { "ETag": { "$ref": "#/components/headers/ETag" } }, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Budget" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Problem" },
+          "404": { "$ref": "#/components/responses/Problem" },
+          "412": { "$ref": "#/components/responses/Problem" },
+          "422": { "$ref": "#/components/responses/RuleProblem" },
+          "428": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/finance/reconciliation": {
+      "get": {
+        "summary": "Balance changes no transaction explains, entries made by hand, and the categories",
+        "operationId": "getReconciliation",
+        "responses": {
+          "200": { "description": "Reconciliation", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Reconciliation" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/finance/manual-transactions": {
+      "post": {
+        "summary": "Explain (part of) a gap with an entry made by hand",
+        "operationId": "addManualTransaction",
+        "parameters": [
+          { "name": "Idempotency-Key", "in": "header", "description": "A new UUID per entry. A retry with the same key returns the first entry (200) instead of adding another.", "schema": { "type": "string", "minLength": 8, "maxLength": 64 } }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ManualTransactionRequest" } } } },
+        "responses": {
+          "200": { "description": "Already added by an earlier request with the same key", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Transaction" } } } },
+          "201": { "description": "Added", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Transaction" } } } },
+          "400": { "$ref": "#/components/responses/Problem" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Problem" },
+          "409": { "$ref": "#/components/responses/RuleProblem" },
+          "422": { "$ref": "#/components/responses/RuleProblem" }
+        }
+      }
+    },
+    "/api/v1/finance/manual-transactions/{id}": {
+      "delete": {
+        "summary": "Delete an entry made by hand (bank lines cannot be deleted)",
+        "operationId": "deleteManualTransaction",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Deleted" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Problem" },
+          "404": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/finance/account/sync": {
+      "post": {
+        "summary": "Ask SePay for new transactions now",
+        "operationId": "syncAccount",
+        "description": "Within 30 seconds of a successful sync, that result is returned with recent=true instead of calling SePay again.",
+        "responses": {
+          "200": { "description": "Result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SyncResult" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Problem" }
+        }
+      }
+    },
+    "/api/v1/finance/receipts/read": {
+      "post": {
+        "summary": "Read a photo of a receipt or bank transfer with the home AI and find the gaps it may explain",
+        "operationId": "readReceipt",
+        "description": "Nothing is stored. To record it, explain the chosen gap with POST /api/v1/finance/manual-transactions.",
+        "requestBody": {
+          "required": true,
+          "content": { "multipart/form-data": { "schema": { "type": "object", "required": ["file"], "properties": { "file": { "type": "string", "format": "binary" } } } } }
+        },
+        "responses": {
+          "200": { "description": "The reading", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ReceiptReading" } } } },
+          "400": { "$ref": "#/components/responses/RuleProblem" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Problem" },
+          "422": { "$ref": "#/components/responses/RuleProblem" },
+          "503": { "$ref": "#/components/responses/RuleProblem" }
+        }
+      }
+    },
+    "/api/v1/me/sessions": {
+      "get": {
+        "summary": "Devices and browsers where the user is signed in, this one first",
+        "operationId": "listSessions",
+        "responses": {
+          "200": { "description": "Sessions", "content": { "application/json": { "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Session" } } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/api/v1/me/sessions/{id}": {
+      "delete": {
+        "summary": "Sign one device out",
+        "operationId": "endSession",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "204": { "description": "Signed out" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Problem" },
           "404": { "$ref": "#/components/responses/Problem" }
         }
       }
@@ -212,7 +330,7 @@
     "securitySchemes": {
       "oauth": {
         "type": "oauth2",
-        "description": "Public client `soitho-ios`, redirect `vn.digifusion.finance:/oauth/callback`, PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
         "flows": {
           "authorizationCode": {
             "authorizationUrl": "/oauth/authorize",
@@ -231,7 +349,14 @@
       "Problem": {
         "description": "Error",
         "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/Problem" } } }
+      },
+      "RuleProblem": {
+        "description": "The request breaks a rule; errors lists which",
+        "content": { "application/problem+json": { "schema": { "$ref": "#/components/schemas/RuleProblem" } } }
       }
+    },
+    "headers": {
+      "ETag": { "description": "Strong entity tag of the budget; send it back in If-Match.", "schema": { "type": "string" } }
     },
     "schemas": {
       "Problem": {
@@ -241,6 +366,25 @@
           "title": { "type": "string" },
           "status": { "type": "integer" },
           "detail": { "type": "string" }
+        }
+      },
+      "RuleProblem": {
+        "type": "object",
+        "properties": {
+          "type": { "type": "string" },
+          "title": { "type": "string" },
+          "status": { "type": "integer" },
+          "detail": { "type": "string" },
+          "errors": { "type": "array", "items": { "$ref": "#/components/schemas/ApiIssue" } }
+        }
+      },
+      "ApiIssue": {
+        "type": "object",
+        "required": ["code", "message", "args"],
+        "properties": {
+          "code": { "type": "string", "description": "Stable, e.g. amount_exceeds_gap; translate it in the app.", "examples": ["amount_exceeds_gap"] },
+          "message": { "type": "string", "description": "English text, as a fallback." },
+          "args": { "type": "array", "description": "Values for the {0}, {1} ... of the message.", "items": { "type": "string" } }
         }
       },
       "Me": {
@@ -256,6 +400,7 @@
       "Direction": { "type": "string", "enum": ["in", "out"] },
       "Account": {
         "type": "object",
+        "required": ["linked", "bankName", "maskedNumber", "balance", "lastSyncUtc", "lastSyncSucceeded"],
         "properties": {
           "linked": { "type": "boolean" },
           "bankName": { "type": "string" },
@@ -267,6 +412,7 @@
       },
       "Cycle": {
         "type": "object",
+        "required": ["start", "end", "day", "days", "moneyIn", "moneyOut", "unrecordedIn", "unrecordedOut", "net", "projectedOut"],
         "properties": {
           "start": { "type": "string", "format": "date" },
           "end": { "type": "string", "format": "date" },
@@ -282,10 +428,12 @@
       },
       "BalancePoint": {
         "type": "object",
+        "required": ["date", "balance"],
         "properties": { "date": { "type": "string", "format": "date" }, "balance": { "type": "integer" } }
       },
       "Upcoming": {
         "type": "object",
+        "required": ["date", "name", "amount", "direction"],
         "properties": {
           "date": { "type": "string", "format": "date" },
           "name": { "type": "string" },
@@ -295,6 +443,7 @@
       },
       "Transaction": {
         "type": "object",
+        "required": ["id", "occurredAtUtc", "direction", "amount", "balance", "content", "reference"],
         "properties": {
           "id": { "type": "integer" },
           "occurredAtUtc": { "type": "string", "format": "date-time" },
@@ -302,11 +451,89 @@
           "amount": { "type": "integer" },
           "balance": { "type": ["integer", "null"] },
           "content": { "type": "string" },
-          "reference": { "type": "string" }
+          "reference": { "type": "string" },
+          "source": { "type": "string", "description": "webhook or api (SePay), statement (imported statement), manual (entered by hand)." },
+          "category": { "type": "string", "description": "Set by hand; empty when not classified." },
+          "note": { "type": "string" }
+        }
+      },
+      "BalanceGap": {
+        "type": "object",
+        "description": "A change of the bank balance that no recorded transaction explains.",
+        "required": ["key", "fromUtc", "toUtc", "balanceBefore", "balanceAfter", "amount", "direction", "manualEntries"],
+        "properties": {
+          "key": { "type": "string" },
+          "fromUtc": { "type": "string", "format": "date-time" },
+          "toUtc": { "type": "string", "format": "date-time" },
+          "balanceBefore": { "type": "integer" },
+          "balanceAfter": { "type": "integer" },
+          "amount": { "type": "integer", "description": "Unexplained amount, always positive." },
+          "direction": { "$ref": "#/components/schemas/Direction" },
+          "manualEntries": { "type": "integer" }
+        }
+      },
+      "Reconciliation": {
+        "type": "object",
+        "required": ["hasAccount", "gaps", "manualEntries", "categories"],
+        "properties": {
+          "hasAccount": { "type": "boolean" },
+          "gaps": { "type": "array", "description": "Newest first.", "items": { "$ref": "#/components/schemas/BalanceGap" } },
+          "manualEntries": { "type": "array", "description": "Newest first, at most 30.", "items": { "$ref": "#/components/schemas/Transaction" } },
+          "categories": { "type": "array", "description": "\"Fund: Category\" names, ending with Other.", "items": { "type": "string" } }
+        }
+      },
+      "ManualTransactionRequest": {
+        "type": "object",
+        "required": ["gapKey", "amount", "date", "category", "note"],
+        "properties": {
+          "gapKey": { "type": "string" },
+          "amount": { "type": "integer", "minimum": 1 },
+          "date": { "type": "string", "format": "date" },
+          "category": { "type": "string", "maxLength": 100 },
+          "note": { "type": "string", "maxLength": 300 }
+        }
+      },
+      "SyncResult": {
+        "type": "object",
+        "required": ["succeeded", "added", "error", "lastRunUtc", "recent"],
+        "properties": {
+          "succeeded": { "type": "boolean" },
+          "added": { "type": "integer" },
+          "error": { "type": ["string", "null"], "examples": ["not_configured", "no_account"] },
+          "lastRunUtc": { "type": ["string", "null"], "format": "date-time" },
+          "recent": { "type": "boolean" }
+        }
+      },
+      "Session": {
+        "type": "object",
+        "required": ["id", "kind", "deviceName", "createdUtc", "lastSeenUtc", "expiresUtc", "isCurrent"],
+        "properties": {
+          "id": { "type": "integer" },
+          "kind": { "type": "string", "enum": ["app", "browser"] },
+          "deviceName": { "type": "string" },
+          "createdUtc": { "type": "string", "format": "date-time" },
+          "lastSeenUtc": { "type": "string", "format": "date-time" },
+          "expiresUtc": { "type": "string", "format": "date-time" },
+          "isCurrent": { "type": "boolean" }
+        }
+      },
+      "ReceiptReading": {
+        "type": "object",
+        "required": ["kind", "vendor", "date", "total", "content", "reference", "gaps", "alreadyRecorded"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["receipt", "transfer", "other"] },
+          "vendor": { "type": "string", "description": "Shop, or the recipient of a transfer." },
+          "date": { "type": ["string", "null"], "format": "date" },
+          "total": { "type": "integer" },
+          "content": { "type": "string" },
+          "reference": { "type": "string" },
+          "gaps": { "type": "array", "description": "Money-out gaps it may explain, best match first.", "items": { "$ref": "#/components/schemas/BalanceGap" } },
+          "alreadyRecorded": { "oneOf": [{ "$ref": "#/components/schemas/Transaction" }, { "type": "null" }] }
         }
       },
       "Dashboard": {
         "type": "object",
+        "required": ["today", "account", "cycle", "balanceHistory", "upcoming", "recent"],
         "properties": {
           "today": { "type": "string", "format": "date" },
           "account": { "$ref": "#/components/schemas/Account" },
@@ -318,9 +545,76 @@
       },
       "TransactionPage": {
         "type": "object",
+        "required": ["items", "nextCursor"],
         "properties": {
           "items": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } },
           "nextCursor": { "type": ["string", "null"] }
+        }
+      },
+      "FundKind": {
+        "type": "string",
+        "enum": ["shared", "personal", "debt", "emergency", "savings"]
+      },
+      "Budget": {
+        "type": "object",
+        "description": "The household budget plan. The joint account number is not included.",
+        "required": ["currency", "approvalThreshold", "cycleStartDay", "incomes", "funds", "debts", "updatedAtUtc"],
+        "properties": {
+          "currency": { "type": "string", "examples": ["VND"] },
+          "approvalThreshold": { "type": "integer", "description": "Unplanned spending at or above this needs the other partner's approval." },
+          "cycleStartDay": { "type": "integer", "minimum": 1, "maximum": 31 },
+          "incomes": { "type": "array", "description": "Earliest payday first.", "items": { "$ref": "#/components/schemas/BudgetIncome" } },
+          "funds": { "type": "array", "items": { "$ref": "#/components/schemas/BudgetFund" } },
+          "debts": { "type": "array", "description": "Earliest due day first.", "items": { "$ref": "#/components/schemas/BudgetDebt" } },
+          "updatedAtUtc": { "type": "string", "format": "date-time" }
+        }
+      },
+      "BudgetIncome": {
+        "type": "object",
+        "description": "A payday and where its money goes, in the order it is moved.",
+        "required": ["key", "name", "amount", "payDay", "allocations"],
+        "properties": {
+          "key": { "type": "string" },
+          "name": { "type": "string" },
+          "amount": { "type": "integer" },
+          "payDay": { "type": "integer", "minimum": 1, "maximum": 31, "description": "Short months use their last day." },
+          "allocations": { "type": "array", "items": { "$ref": "#/components/schemas/BudgetAllocation" } }
+        }
+      },
+      "BudgetAllocation": {
+        "type": "object",
+        "required": ["fundKey", "amount"],
+        "properties": { "fundKey": { "type": "string" }, "amount": { "type": "integer" } }
+      },
+      "BudgetFund": {
+        "type": "object",
+        "required": ["key", "name", "kind", "monthlyAmount", "targetAmount", "ownerUserId", "categories"],
+        "properties": {
+          "key": { "type": "string" },
+          "name": { "type": "string" },
+          "kind": { "$ref": "#/components/schemas/FundKind" },
+          "monthlyAmount": { "type": "integer" },
+          "targetAmount": { "type": ["integer", "null"], "description": "Emergency and savings funds; null when there is none." },
+          "ownerUserId": { "type": ["integer", "null"], "description": "Owner of a personal fund; null otherwise or when not assigned." },
+          "categories": { "type": "array", "items": { "$ref": "#/components/schemas/BudgetCategory" } }
+        }
+      },
+      "BudgetCategory": {
+        "type": "object",
+        "required": ["key", "name", "monthlyLimit"],
+        "properties": { "key": { "type": "string" }, "name": { "type": "string" }, "monthlyLimit": { "type": "integer" } }
+      },
+      "BudgetDebt": {
+        "type": "object",
+        "required": ["key", "name", "monthlyPayment", "dueDay", "remainingBalance", "annualInterestRate", "fundKey"],
+        "properties": {
+          "key": { "type": "string" },
+          "name": { "type": "string" },
+          "monthlyPayment": { "type": "integer" },
+          "dueDay": { "type": "integer", "minimum": 1, "maximum": 31 },
+          "remainingBalance": { "type": ["integer", "null"] },
+          "annualInterestRate": { "type": ["number", "null"], "description": "Percent per year." },
+          "fundKey": { "type": "string" }
         }
       },
       "FoodKind": {
