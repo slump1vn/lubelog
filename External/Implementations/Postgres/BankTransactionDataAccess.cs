@@ -81,6 +81,23 @@ namespace CarCareTracker.External.Implementations
             return Query($"SELECT data FROM app.{tableName} WHERE householdId = @householdId AND occurredAt >= @from ORDER BY occurredAt, id",
                 x => { x.AddWithValue("householdId", householdId); x.AddWithValue("from", DateTime.SpecifyKind(fromUtc, DateTimeKind.Utc)); });
         }
+        public bool Delete(int householdId, int id)
+        {
+            try
+            {
+                using (var ctext = pgDataSource.CreateCommand($"DELETE FROM app.{tableName} WHERE id = @id AND householdId = @householdId"))
+                {
+                    ctext.Parameters.AddWithValue("id", id);
+                    ctext.Parameters.AddWithValue("householdId", householdId);
+                    return ctext.ExecuteNonQuery() > 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex.Message);
+                return false;
+            }
+        }
         private List<BankTransaction> Query(string cmd, Action<NpgsqlParameterCollection> addParameters)
         {
             var results = new List<BankTransaction>();

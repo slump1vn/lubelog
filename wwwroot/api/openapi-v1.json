@@ -53,6 +53,159 @@
           "404": { "$ref": "#/components/responses/Problem" }
         }
       }
+    },
+    "/api/v1/food/read": {
+      "post": {
+        "summary": "Read 1 to 3 photos of one food label with the home AI (photos are not stored)",
+        "operationId": "readFoodLabel",
+        "description": "Needs the Authorization: Bearer header. The user must check the reading before it is analysed.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The reading, or success=false with a message",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodReadResult"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/Problem"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/food/analyze": {
+      "post": {
+        "summary": "Rate a checked reading (UK FSA traffic lights, WHO limits, additives, allergens)",
+        "operationId": "analyzeFoodLabel",
+        "description": "Needs the Authorization: Bearer header. save=true adds it to the household history.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FoodAnalyzeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The analysis",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodAnalyzeResult"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
+    },
+    "/api/v1/food/scans": {
+      "get": {
+        "summary": "Saved food label scans of the household, newest first",
+        "operationId": "listFoodScans",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Scans",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FoodScan"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/api/v1/food/scans/{id}": {
+      "get": {
+        "summary": "One saved scan, with the caller's own allergy marks",
+        "operationId": "getFoodScan",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The scan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FoodScan"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/Problem"
+          }
+        }
+      }
     }
   },
   "components": {
@@ -121,6 +274,8 @@
           "days": { "type": "integer" },
           "moneyIn": { "type": "integer" },
           "moneyOut": { "type": "integer" },
+          "unrecordedIn": { "type": "integer", "description": "Part of moneyIn found only from the bank balance (no transaction reported)." },
+          "unrecordedOut": { "type": "integer", "description": "Part of moneyOut found only from the bank balance (no transaction reported), e.g. card payments SePay does not record." },
           "net": { "type": "integer" },
           "projectedOut": { "type": ["integer", "null"], "description": "Null in the first two days of the cycle." }
         }
@@ -166,6 +321,147 @@
         "properties": {
           "items": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } },
           "nextCursor": { "type": ["string", "null"] }
+        }
+      },
+      "FoodKind": {
+        "type": "string",
+        "enum": ["Food", "Drink"]
+      },
+      "NutrientBasis": {
+        "type": "string",
+        "enum": ["Per100", "PerServing"],
+        "description": "Whether the nutrition values are per 100 g/ml or per serving."
+      },
+      "FoodLight": {
+        "type": "string",
+        "enum": ["Unknown", "Green", "Amber", "Red"],
+        "description": "UK FSA front-of-pack traffic light."
+      },
+      "FoodNoteLevel": {
+        "type": "string",
+        "enum": ["Info", "Caution"]
+      },
+      "FoodLabelReading": {
+        "type": "object",
+        "description": "What was read from a label. Grams, sodium in mg, energy in kcal; null = not on the label.",
+        "properties": {
+          "productName": { "type": "string" },
+          "brand": { "type": "string" },
+          "barcode": { "type": "string" },
+          "kind": { "$ref": "#/components/schemas/FoodKind" },
+          "basis": { "$ref": "#/components/schemas/NutrientBasis" },
+          "servingSize": { "type": ["number", "null"]},
+          "netQuantity": { "type": ["number", "null"]},
+          "energyKcal": { "type": ["number", "null"]},
+          "fat": { "type": ["number", "null"]},
+          "saturatedFat": { "type": ["number", "null"]},
+          "transFat": { "type": ["number", "null"]},
+          "carbohydrate": { "type": ["number", "null"]},
+          "sugars": { "type": ["number", "null"]},
+          "fibre": { "type": ["number", "null"]},
+          "protein": { "type": ["number", "null"]},
+          "salt": { "type": ["number", "null"]},
+          "sodiumMg": { "type": ["number", "null"]},
+          "ingredients": { "type": "string" },
+          "uncertain": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "NutrientRating": {
+        "type": "object",
+        "properties": {
+          "nutrient": { "type": "string", "enum": ["fat", "saturates", "sugars", "salt"]},
+          "per100": { "type": ["number", "null"]},
+          "perServing": { "type": ["number", "null"]},
+          "light": { "$ref": "#/components/schemas/FoodLight" },
+          "redByPortion": { "type": "boolean" },
+          "percentOfDailyLimit": { "type": ["number", "null"]},
+          "dailyLimit": { "type": "number" }
+        }
+      },
+      "FoodNote": {
+        "type": "object",
+        "properties": {
+          "level": { "$ref": "#/components/schemas/FoodNoteLevel" },
+          "textVi": { "type": "string" },
+          "textEn": { "type": "string" },
+          "sourceName": { "type": "string" },
+          "sourceUrl": { "type": "string" }
+        }
+      },
+      "AdditiveFinding": {
+        "type": "object",
+        "properties": {
+          "code": { "type": "string" },
+          "nameVi": { "type": "string" },
+          "nameEn": { "type": "string" },
+          "class": { "type": "string" },
+          "known": { "type": "boolean" },
+          "notes": { "type": "array", "items": { "$ref": "#/components/schemas/FoodNote" } }
+        }
+      },
+      "AllergenFinding": {
+        "type": "object",
+        "properties": {
+          "group": { "type": "string" },
+          "matched": { "type": "string" },
+          "mayContain": { "type": "boolean" },
+          "inProfile": { "type": "boolean" }
+        }
+      },
+      "FoodLabelAnalysis": {
+        "type": "object",
+        "properties": {
+          "referenceVersion": { "type": "string" },
+          "hasNutrition": { "type": "boolean" },
+          "energyKcalPer100": { "type": ["number", "null"]},
+          "transFatPer100": { "type": ["number", "null"]},
+          "ratings": { "type": "array", "items": { "$ref": "#/components/schemas/NutrientRating" } },
+          "additives": { "type": "array", "items": { "$ref": "#/components/schemas/AdditiveFinding" } },
+          "allergens": { "type": "array", "items": { "$ref": "#/components/schemas/AllergenFinding" } },
+          "flags": { "type": "array", "items": { "$ref": "#/components/schemas/FoodNote" } },
+          "issues": { "type": "array", "items": { "type": "string" } },
+          "redCount": { "type": "integer" },
+          "amberCount": { "type": "integer" },
+          "greenCount": { "type": "integer" }
+        }
+      },
+      "FoodScan": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "householdId": { "type": "integer" },
+          "userId": { "type": "integer" },
+          "userName": { "type": "string" },
+          "createdAtUtc": { "type": "string", "format": "date-time" },
+          "reading": { "$ref": "#/components/schemas/FoodLabelReading" },
+          "analysis": { "$ref": "#/components/schemas/FoodLabelAnalysis" },
+          "transactionId": { "type": "integer" },
+          "transactionText": { "type": "string" }
+        }
+      },
+      "FoodReadResult": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "message": { "type": "string" },
+          "reading": { "$ref": "#/components/schemas/FoodLabelReading" }
+        }
+      },
+      "FoodAnalyzeRequest": {
+        "type": "object",
+        "properties": {
+          "reading": { "$ref": "#/components/schemas/FoodLabelReading" },
+          "save": { "type": "boolean" }
+        }
+      },
+      "FoodAnalyzeResult": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "message": { "type": "string" },
+          "scanId": { "type": "integer" },
+          "reading": { "$ref": "#/components/schemas/FoodLabelReading" },
+          "analysis": { "$ref": "#/components/schemas/FoodLabelAnalysis" }
         }
       }
     }

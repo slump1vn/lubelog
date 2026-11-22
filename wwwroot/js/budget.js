@@ -7,6 +7,7 @@ function loadBudget(template) {
             $("#budget-tab-pane").html(data);
             initBudgetSettings();
             loadBudgetAccount();
+            loadBudgetReconciliation();
         }
     });
 }
@@ -265,6 +266,9 @@ function reloadBudgetAccountViews() {
     if ($("#budgetAccount").length) {
         loadBudgetAccount();
     }
+    if ($("#budgetReconciliation").length) {
+        loadBudgetReconciliation();
+    }
 }
 function syncBudgetAccount(button) {
     $(button).prop('disabled', true);
@@ -286,4 +290,109 @@ function syncBudgetAccount(button) {
             $(button).prop('disabled', false);
         }
     });
+}
+// Reconciliation of the joint account: differences between the bank balance and the recorded
+// transactions, explained by hand or filled in from an imported bank statement.
+function loadBudgetReconciliation() {
+    $.get('/Budget/Reconciliation', function (data) {
+        $("#budgetReconciliation").html(data);
+        showBudgetTimes("#budgetReconciliation");
+    });
+}
+function toggleGapForm(key) {
+    $(`#budgetReconciliation li[data-gap-key='${key}'] .gap-form`).toggle();
+}
+function postBudgetJson(url, payload, onDone) {
+    $.ajax({
+        url: url,
+        type: 'POST',
+        contentType: 'application/json',
+        data: JSON.stringify(payload),
+        success: function (result) {
+            if (result.success) {
+                successToast(result.message);
+                reloadBudgetAccountViews();
+            } else {
+                errorToast(result.message);
+            }
+            if (onDone) { onDone(result); }
+        },
+        error: function () {
+            errorToast(genericErrorMessage());
+            if (onDone) { onDone(); }
+        }
+    });
+}
+function saveGapExplanation(key) {
+    var item = $(`#budgetReconciliation li[data-gap-key='${key}']`);
+    postBudgetJson('/Budget/AddManualTransaction', {
+        gapKey: key,
+        amount: parseInt(item.find('.gap-amount').val()) || 0,
+        date: item.find('.gap-date').val(),
+        category: item.find('.gap-category').val(),
+        note: item.find('.gap-note').val()
+    });
+}
+function deleteManualEntry(id) {
+    postBudgetJson('/Budget/DeleteManualTransaction', { id: id });
+}
+function importStatement(apply, button) {
+    var input = $("#statementFile")[0];
+    if (!input || !input.files || !input.files.length) {
+        $("#statementFile").addClass('is-invalid');
+        return;
+    }
+    $("#statementFile").removeClass('is-invalid');
+    var form = new FormData();
+    form.append('file', input.files[0]);
+    $(button).prop('disabled', true);
+    $.ajax({
+        url: `/Budget/ImportStatement?apply=${apply ? 'true' : 'false'}`,
+        type: 'POST',
+        data: form,
+        processData: false,
+        contentType: false,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        success: function (result) {
+            $(button).prop('disabled', false);
+            showStatementResult(result, apply);
+            if (apply && result.success) {
+                successToast(result.message);
+                reloadBudgetAccountViews();
+            }
+        },
+        error: function () {
+            $(button).prop('disabled', false);
+            errorToast(genericErrorMessage());
+        }
+    });
+}
+function showStatementResult(result, applied) {
+    var container = $("#statementResult");
+    var esc = function (text) { return $('<div>').text(text == null ? '' : text).html(); };
+    if (!result.success) {
+        $("#statementApply").hide();
+        container.html(`<div class="alert alert-danger mb-0">${(result.errors || []).map(esc).join('<br />')}</div>`);
+        return;
+    }
+    var labels = { New: container.data('new'), AlreadyRecorded: container.data('known'), ReplacesManual: container.data('replace') };
+    var columns = Object.keys(result.columns || {}).map(k => `${esc(k)} = "${esc(result.columns[k])}"`).join(', ');
+    var rows = (result.preview || []).map(function (row) {
+        var when = new Date(row.occurredAtUtc).toLocaleString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        var amount = (row.direction === 'in' ? '+' : '-') + formatBudgetMoney(row.amount);
+        var badge = row.outcome === 'New' ? 'text-bg-primary' : row.outcome === 'ReplacesManual' ? 'text-bg-warning' : 'text-bg-secondary';
+        return `<tr><td class="text-nowrap small">${esc(when)}</td><td class="small text-break">${esc(row.description)}</td>` +
+            `<td class="text-end text-nowrap ${row.direction === 'in' ? 'text-success' : 'text-danger'}">${esc(amount)}</td>` +
+            `<td class="text-end text-nowrap small">${row.balance == null ? '' : esc(formatBudgetMoney(row.balance))}</td>` +
+            `<td><span class="badge ${badge}">${esc(labels[row.outcome] || row.outcome)}</span></td></tr>`;
+    }).join('');
+    container.html(`<div class="alert ${applied ? 'alert-success' : 'alert-info'} mb-2">${esc(result.message)}` +
+        (columns ? `<div class="small mt-1">${esc(container.data('columns'))}: ${columns}</div>` : '') +
+        (result.skippedLines ? `<div class="small">${esc(container.data('skipped'))}: ${result.skippedLines}</div>` : '') + `</div>` +
+        (rows ? `<div class="table-responsive" style="max-height:360px"><table class="table table-sm align-middle mb-0"><tbody>${rows}</tbody></table></div>` : ''));
+    if (!applied && (result.new > 0 || result.replacesManual > 0)) {
+        $("#statementApply").show();
+    } else {
+        $("#statementApply").hide();
+    }
 }
