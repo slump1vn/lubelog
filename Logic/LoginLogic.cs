@@ -17,12 +17,11 @@ namespace CarCareTracker.Logic
         bool DeleteUserToken(int tokenId);
         bool DeleteUser(int userId);
         OperationResponse RegisterOpenIdUser(LoginModel credentials);
-        OperationResponse UpdateUserDetails(int userId, LoginModel credentials);
-        OperationResponse RegisterNewUser(LoginModel credentials);
+        OperationResponse UpdateUserDetails(int userId, LoginModel credentials, int? currentSessionId = null);
+        OperationResponse CreateUserByAdmin(string userName, string emailAddress, string password, bool isAdmin);
         Task<OperationResponse> RequestResetPassword(LoginModel credentials);
         OperationResponse ResetPasswordByUser(LoginModel credentials);
         OperationResponse ResetUserPassword(LoginModel credentials);
-        Task<OperationResponse> SendRegistrationToken(LoginModel credentials);
         UserData ValidateUserCredentials(LoginModel credentials);
         UserData ValidateOpenIDUser(LoginModel credentials);
         UserData ValidateAPIKey(string apiKey);
@@ -44,14 +43,17 @@ namespace CarCareTracker.Logic
         private readonly IApiKeyRecordDataAccess _apiKeyData;
         private readonly IMailHelper _mailHelper;
         private readonly IConfigHelper _configHelper;
+        private readonly ISessionLogic _sessionLogic;
         private IMemoryCache _cache;
         public LoginLogic(IUserRecordDataAccess userData, 
             ITokenRecordDataAccess tokenData, 
             IApiKeyRecordDataAccess apiKeyData,
             IMailHelper mailHelper,
             IConfigHelper configHelper,
+            ISessionLogic sessionLogic,
             IMemoryCache memoryCache)
         {
+            _sessionLogic = sessionLogic;
             _userData = userData;
             _tokenData = tokenData;
             _apiKeyData = apiKeyData;
@@ -74,7 +76,7 @@ namespace CarCareTracker.Logic
                 return result.Id != 0;
             }
         }
-        public OperationResponse UpdateUserDetails(int userId, LoginModel credentials)
+        public OperationResponse UpdateUserDetails(int userId, LoginModel credentials, int? currentSessionId = null)
         {
             //get current user details
             var existingUser = _userData.GetUserRecordById(userId);
@@ -108,14 +110,21 @@ namespace CarCareTracker.Logic
                 }
                 existingUser.EmailAddress = credentials.EmailAddress;
             }
+            bool passwordChanged = false;
             if (!string.IsNullOrWhiteSpace(existingUser.Password) && !string.IsNullOrWhiteSpace(credentials.Password))
             {
                 //update password only for non OIDC users
-                existingUser.Password = StaticHelper.GetHash(credentials.Password);
+                existingUser.Password = PasswordHasher.Hash(credentials.Password);
+                passwordChanged = true;
             }
             //delete token
             _tokenData.DeleteToken(existingToken.Id);
             var result = _userData.SaveUserRecord(existingUser);
+            if (result && passwordChanged)
+            {
+                //a new password signs out every other device; this one stays signed in.
+                _sessionLogic.EndOtherSessions(existingUser.Id, currentSessionId);
+            }
             return OperationResponse.Conditional(result, "User Updated", string.Empty);
         }
         public OperationResponse RegisterOpenIdUser(LoginModel credentials)
@@ -158,57 +167,39 @@ namespace CarCareTracker.Logic
             }
         }
         //handles user registration
-        public OperationResponse RegisterNewUser(LoginModel credentials)
+        public const int MinimumPasswordLength = 8;
+        public OperationResponse CreateUserByAdmin(string userName, string emailAddress, string password, bool isAdmin)
         {
-            //validate their token.
-            var existingToken = _tokenData.GetTokenRecordByBody(credentials.Token);
-            if (existingToken.Id == default || existingToken.EmailAddress != credentials.EmailAddress)
-            {
-                return OperationResponse.Failed("Invalid Token");
-            }
-            //token is valid, check if username and password is acceptable and that username is unique.
-            if (string.IsNullOrWhiteSpace(credentials.EmailAddress) || string.IsNullOrWhiteSpace(credentials.UserName) || string.IsNullOrWhiteSpace(credentials.Password))
+            userName = (userName ?? string.Empty).Trim();
+            emailAddress = (emailAddress ?? string.Empty).Trim();
+            if (string.IsNullOrWhiteSpace(userName) || string.IsNullOrEmpty(password))
             {
                 return OperationResponse.Failed("Neither username nor password can be blank");
             }
-            var existingUser = _userData.GetUserRecordByUserName(credentials.UserName);
-            if (existingUser.Id != default)
+            if (password.Length < MinimumPasswordLength)
+            {
+                return OperationResponse.Failed("Password must be at least 8 characters");
+            }
+            if (!string.IsNullOrWhiteSpace(emailAddress) && !System.Net.Mail.MailAddress.TryCreate(emailAddress, out _))
+            {
+                return OperationResponse.Failed("Invalid email address");
+            }
+            if (_userData.GetUserRecordByUserName(userName).Id != default)
             {
                 return OperationResponse.Failed("Username already taken");
             }
-            var existingUserWithEmail = _userData.GetUserRecordByEmailAddress(credentials.EmailAddress);
-            if (existingUserWithEmail.Id != default)
+            if (!string.IsNullOrWhiteSpace(emailAddress) && _userData.GetUserRecordByEmailAddress(emailAddress).Id != default)
             {
                 return OperationResponse.Failed("A user with that email already exists");
             }
-            //username is unique then we delete the token and create the user.
-            _tokenData.DeleteToken(existingToken.Id);
             var newUser = new UserData()
             {
-                UserName = credentials.UserName,
-                Password = StaticHelper.GetHash(credentials.Password),
-                EmailAddress = credentials.EmailAddress
+                UserName = userName,
+                Password = PasswordHasher.Hash(password),
+                EmailAddress = emailAddress,
+                IsAdmin = isAdmin
             };
-            var result = _userData.SaveUserRecord(newUser);
-            if (result)
-            {
-                return OperationResponse.Succeed("You will be redirected to the login page briefly.");
-            }
-            else
-            {
-                return OperationResponse.Failed();
-            }
-        }
-        public async Task<OperationResponse> SendRegistrationToken(LoginModel credentials)
-        {
-            if (_configHelper.GetServerOpenRegistration())
-            {
-                var response = await GenerateUserToken(credentials.EmailAddress, true);
-                return response;
-            } else
-            {
-                return OperationResponse.Failed("Open Registration Disabled");
-            }
+            return _userData.SaveUserRecord(newUser) ? OperationResponse.Succeed("User created") : OperationResponse.Failed();
         }
         /// <summary>
         /// Generates a token and notifies user via email so they can reset their password.
@@ -249,12 +240,13 @@ namespace CarCareTracker.Logic
                 //Prevent OIDC User from resetting password
                 return OperationResponse.Failed();
             }
-            existingUser.Password = StaticHelper.GetHash(credentials.Password);
+            existingUser.Password = PasswordHasher.Hash(credentials.Password);
             var result = _userData.SaveUserRecord(existingUser);
             //delete token
             _tokenData.DeleteToken(existingToken.Id);
             if (result)
             {
+                _sessionLogic.EndOtherSessions(existingUser.Id, null);
                 return OperationResponse.Succeed("Password resetted, you will be redirected to login page shortly.");
             } else
             {
@@ -286,8 +278,14 @@ namespace CarCareTracker.Logic
                     //prevent OIDC users from logging in via basic auth
                     return new UserData();
                 }
-                if (StaticHelper.GetHash(credentials.Password) == result.Password)
+                if (VerifyPasswordCached(credentials.UserName, credentials.Password, result.Password, out var needsRehash))
                 {
+                    if (needsRehash)
+                    {
+                        //upgrade hashes written by older versions now that we know the password.
+                        result.Password = PasswordHasher.Hash(credentials.Password);
+                        _userData.SaveUserRecord(result);
+                    }
                     result.Password = string.Empty;
                     return result;
                 }
@@ -357,6 +355,7 @@ namespace CarCareTracker.Logic
             var result = _userData.SaveUserRecord(existingUser);
             if (result)
             {
+                _sessionLogic.EndOtherSessions(existingUser.Id, null);
                 return OperationResponse.Succeed("Password Revoked");
             }
             else
@@ -371,10 +370,11 @@ namespace CarCareTracker.Logic
             {
                 return OperationResponse.Failed("Unable to locate user");
             }
-            existingUser.Password = StaticHelper.GetHash(NewToken());
+            existingUser.Password = PasswordHasher.Hash(NewToken());
             var result = _userData.SaveUserRecord(existingUser);
             if (result)
             {
+                _sessionLogic.EndOtherSessions(existingUser.Id, null);
                 return OperationResponse.Succeed("Password Reset");
             }
             else
@@ -392,6 +392,11 @@ namespace CarCareTracker.Logic
             }
             user.IsAdmin = isAdmin;
             var result = _userData.SaveUserRecord(user);
+            if (result)
+            {
+                //the role is part of the login cookie, so the user signs in again to pick up the change.
+                _sessionLogic.EndOtherSessions(userId, null);
+            }
             return result;
         }
         public List<UserData> GetAllUsers()
@@ -476,6 +481,10 @@ namespace CarCareTracker.Logic
         public bool DeleteUser(int userId)
         {
             var result = _userData.DeleteUserRecord(userId);
+            if (result)
+            {
+                _sessionLogic.EndOtherSessions(userId, null);
+            }
             return result;
         }
         public OperationResponse ResetUserPassword(LoginModel credentials)
@@ -487,10 +496,11 @@ namespace CarCareTracker.Logic
                 return OperationResponse.Failed("Unable to find user");
             }
             var newPassword = Guid.NewGuid().ToString().Substring(0, 8);
-            existingUser.Password = StaticHelper.GetHash(newPassword);
+            existingUser.Password = PasswordHasher.Hash(newPassword);
             var result = _userData.SaveUserRecord(existingUser);
             if (result)
             {
+                _sessionLogic.EndOtherSessions(existingUser.Id, null);
                 return OperationResponse.Succeed(newPassword);
             }
             else
@@ -511,7 +521,7 @@ namespace CarCareTracker.Logic
                 {
                     //create hashes of the login credentials.
                     var hashedUserName = StaticHelper.GetHash(credentials.UserName);
-                    var hashedPassword = StaticHelper.GetHash(credentials.Password);
+                    var hashedPassword = PasswordHasher.Hash(credentials.Password);
                     //copy over settings that are off limits on the settings page.
                     existingUserConfig.EnableAuth = true;
                     existingUserConfig.UserNameHash = hashedUserName;
@@ -524,7 +534,7 @@ namespace CarCareTracker.Logic
                 {
                     EnableAuth = true,
                     UserNameHash = StaticHelper.GetHash(credentials.UserName),
-                    UserPasswordHash = StaticHelper.GetHash(credentials.Password)
+                    UserPasswordHash = PasswordHasher.Hash(credentials.Password)
                 };
                 File.WriteAllText(StaticHelper.UserConfigPath, JsonSerializer.Serialize(newUserConfig));
             }
@@ -549,9 +559,71 @@ namespace CarCareTracker.Logic
         }
         private bool UserIsRoot(LoginModel credentials)
         {
+            if (string.IsNullOrEmpty(credentials.UserName) || string.IsNullOrEmpty(credentials.Password))
+            {
+                return false;
+            }
             var hashedUserName = StaticHelper.GetHash(credentials.UserName);
-            var hashedPassword = StaticHelper.GetHash(credentials.Password);
-            return _configHelper.AuthenticateRootUser(hashedUserName, hashedPassword);
+            var storedHash = _configHelper.GetRootUserPasswordHash(hashedUserName);
+            if (string.IsNullOrEmpty(storedHash))
+            {
+                return false;
+            }
+            if (!VerifyPasswordCached(credentials.UserName, credentials.Password, storedHash, out var needsRehash))
+            {
+                return false;
+            }
+            if (needsRehash)
+            {
+                UpgradeRootPasswordHash(storedHash, PasswordHasher.Hash(credentials.Password));
+            }
+            return true;
+        }
+        /// <summary>
+        /// Rewrites the root password hash in the config file, only if the file still holds the old hash
+        /// (a hash supplied through environment variables is left alone and keeps verifying).
+        /// </summary>
+        private void UpgradeRootPasswordHash(string oldHash, string newHash)
+        {
+            try
+            {
+                if (!File.Exists(StaticHelper.UserConfigPath))
+                {
+                    return;
+                }
+                var existingUserConfig = JsonSerializer.Deserialize<UserConfig>(File.ReadAllText(StaticHelper.UserConfigPath));
+                if (existingUserConfig is null || existingUserConfig.UserPasswordHash != oldHash)
+                {
+                    return;
+                }
+                existingUserConfig.UserPasswordHash = newHash;
+                File.WriteAllText(StaticHelper.UserConfigPath, JsonSerializer.Serialize(existingUserConfig));
+                _cache.Remove($"userConfig_{(-1).ToString()}");
+            }
+            catch
+            {
+                //the old hash keeps working; the upgrade is retried on the next login.
+            }
+        }
+        /// <summary>
+        /// PBKDF2 is deliberately slow. HTTP Basic auth (API clients) sends the password on every request,
+        /// so a successful check is remembered briefly, keyed by a digest of the inputs and the stored hash
+        /// (changing the password changes the stored hash and invalidates the entry).
+        /// </summary>
+        private bool VerifyPasswordCached(string userName, string password, string storedHash, out bool needsRehash)
+        {
+            var cacheKey = $"pwok_{StaticHelper.GetHash($"{userName}\u0000{password}\u0000{storedHash}")}";
+            if (_cache.TryGetValue(cacheKey, out bool _))
+            {
+                needsRehash = PasswordHasher.IsLegacyHash(storedHash);
+                return true;
+            }
+            var ok = PasswordHasher.Verify(password, storedHash, out needsRehash);
+            if (ok && !needsRehash)
+            {
+                _cache.Set(cacheKey, true, TimeSpan.FromMinutes(10));
+            }
+            return ok;
         }
         private UserData GetRootUserData(string username)
         {

@@ -4,14 +4,13 @@
 @model string
 @{
     var userLanguage = config.GetServerLanguage();
-    var registrationDisabled = config.GetServerDisabledRegistration();
     var openIdConfigName = config.GetOpenIDConfig().Name;
 }
 @{
     ViewData["Title"] = "Login";
 }
 @section Scripts {
-    <script src="~/js/login.js?v=@StaticHelper.VersionNumber"></script>
+    <script src="~/js/login.js" asp-append-version="true"></script>
 }
 <div class="no-top-pad container d-flex align-items-center justify-content-center" style="height:100dvh">
     <div class="border rounded shadow p-5">
@@ -51,12 +50,6 @@
             <div class="d-grid">
                 <a href="/Login/ForgotPassword" class="btn btn-link mt-2">@translator.Translate(userLanguage, "Forgot Password")</a>
             </div>
-            @if (!registrationDisabled)
-            {
-                <div class="d-grid">
-                    <a href="/Login/Registration" class="btn btn-link mt-2">@translator.Translate(userLanguage, "Register")</a>
-                </div>
-            }
         </div>
     </div>
 </div>

@@ -1,0 +1,47 @@
+@using CarCareTracker.Helper
+@using System.Globalization
+@inject IConfigHelper config
+@inject ITranslationHelper translator
+@model List<UserSessionViewModel>
+@{
+    var userLanguage = config.GetUserConfig(User).UserLanguage;
+    string T(string text) => translator.Translate(userLanguage, text);
+    string Utc(DateTime value) => DateTime.SpecifyKind(value, DateTimeKind.Utc).ToString("o", CultureInfo.InvariantCulture);
+    var others = Model.Count(x => !x.IsCurrent);
+}
+<div class="modal-header">
+    <h5 class="modal-title">@T("Signed-in devices")</h5>
+    <button type="button" class="btn-close" onclick="hideUserSessionsModal()" aria-label="@T("Close")"></button>
+</div>
+<div class="modal-body">
+    <p class="small text-muted">@T("Each device where you signed in is listed here. Sign out any device you do not recognise, then change your password.")</p>
+    <ul class="list-group">
+        @foreach (var session in Model)
+        {
+            <li class="list-group-item d-flex justify-content-between align-items-start gap-2">
+                <div class="small text-break">
+                    <div class="fw-semibold">
+                        <i class="bi @(session.Kind == SessionKind.App ? "bi-phone" : "bi-globe") me-1"></i>@(string.IsNullOrEmpty(session.DeviceName) ? T("Unknown device") : session.DeviceName)
+                        @if (session.IsCurrent)
+                        {
+                            <span class="badge text-bg-success ms-1">@T("This device")</span>
+                        }
+                    </div>
+                    <div class="text-muted">@T("Last active"): <time class="budget-time" datetime="@Utc(session.LastSeenUtc)">@session.LastSeenUtc.ToString("u")</time> · @session.LastAddress</div>
+                    <div class="text-muted">@T("Signed in"): <time class="budget-time" datetime="@Utc(session.CreatedUtc)">@session.CreatedUtc.ToString("u")</time></div>
+                </div>
+                @if (!session.IsCurrent)
+                {
+                    <button type="button" class="btn btn-sm btn-outline-danger text-nowrap" onclick="endUserSession(@session.Id)">@T("Sign out")</button>
+                }
+            </li>
+        }
+    </ul>
+</div>
+<div class="modal-footer">
+    @if (others > 0)
+    {
+        <button type="button" class="btn btn-danger me-auto" onclick="endOtherUserSessions()">@T("Sign out all other devices")</button>
+    }
+    <button type="button" class="btn btn-secondary" onclick="hideUserSessionsModal()">@T("Close")</button>
+</div>

@@ -10,5 +10,10 @@ namespace CarCareTracker.External.Interfaces
         List<BankTransaction> GetRecent(int householdId, int limit);
         /// <summary>Transactions booked at or after the time, oldest first.</summary>
         List<BankTransaction> GetSince(int householdId, DateTime fromUtc);
+        /// <summary>
+        /// One page, newest first, of the transactions booked before the given one (keyset paging on
+        /// booking time, then id). With no cursor, the newest page.
+        /// </summary>
+        List<BankTransaction> GetPage(int householdId, DateTime? beforeUtc, int beforeId, int limit);
     }
 }

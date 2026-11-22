@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 204 48" width="204" height="48">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0f766e"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(2 4) scale(0.078125)">
+    <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+    <path d="M256 92 L432 236 L392 236 L392 412 L120 412 L120 236 L80 236 Z" fill="#ffffff"/>
+    <circle cx="256" cy="310" r="78" fill="#f5b301"/>
+    <text x="256" y="342" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-weight="700" font-size="96" fill="#ffffff">₫</text>
+  </g>
+  <text x="50" y="25" font-family="Segoe UI, Arial, sans-serif" font-weight="700" font-size="20" fill="#14a89a">Sói &amp; Thỏ</text>
+  <text x="50" y="41" font-family="Segoe UI, Arial, sans-serif" font-weight="600" font-size="11.5" fill="#d99a00">Tài chính gia đình</text>
+</svg>

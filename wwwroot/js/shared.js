@@ -6,7 +6,11 @@
 const mobileScreen = window.matchMedia("(max-width: 575px)");
 var eventHubConn = undefined;
 function returnToGarage() {
-    window.location.href = '/Home';
+    if (window.location.pathname.toLowerCase().startsWith('/vehicle')) {
+        window.location.href = '/Home?tab=garage';
+    } else {
+        window.location.href = '/Home';
+    }
 }
 function confirmDelete(message, callBack) {
     Swal.fire({

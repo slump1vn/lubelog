@@ -18,7 +18,7 @@ namespace CarCareTracker.Helper
         List<SkippedSetting> GetSkippedSettings();
         bool SaveUserConfig(ClaimsPrincipal user, UserConfig configData);
         bool SaveServerConfig(ServerConfig serverConfig);
-        bool AuthenticateRootUser(string username, string password);
+        string GetRootUserPasswordHash(string usernameHash);
         bool AuthenticateRootUserOIDC(string email);
         string GetWebHookUrl();
         bool GetCustomWidgetsEnabled();
@@ -109,7 +109,8 @@ namespace CarCareTracker.Helper
         }
         public bool GetServerOpenRegistration()
         {
-            return CheckBool(CheckString("LUBELOGGER_OPEN_REGISTRATION"));
+            //self-registration is not offered: accounts are created by an administrator.
+            return false;
         }
         public int GetAuthCookieLifeSpan()
         {
@@ -184,15 +185,20 @@ namespace CarCareTracker.Helper
             var allowedFileExtensions = CheckString("LUBELOGGER_ALLOWED_FILE_EXTENSIONS", StaticHelper.DefaultAllowedFileExtensions);
             return allowedFileExtensions;
         }
-        public bool AuthenticateRootUser(string username, string password)
+        /// <summary>
+        /// Returns the stored root password hash when the username hash matches, otherwise an empty string.
+        /// </summary>
+        public string GetRootUserPasswordHash(string usernameHash)
         {
             var rootUsername = CheckString(nameof(UserConfig.UserNameHash));
             var rootPassword = CheckString(nameof(UserConfig.UserPasswordHash));
-            if (string.IsNullOrWhiteSpace(rootUsername) || string.IsNullOrWhiteSpace(rootPassword))
+            if (string.IsNullOrWhiteSpace(rootUsername) || string.IsNullOrWhiteSpace(rootPassword) || string.IsNullOrEmpty(usernameHash))
             {
-                return false;
+                return string.Empty;
             }
-            return username == rootUsername && password == rootPassword;
+            var matches = System.Security.Cryptography.CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.ASCII.GetBytes(usernameHash), System.Text.Encoding.ASCII.GetBytes(rootUsername));
+            return matches ? rootPassword : string.Empty;
         }
         public bool AuthenticateRootUserOIDC(string email)
         {
@@ -221,8 +227,8 @@ namespace CarCareTracker.Helper
         }
         public bool GetServerDisabledRegistration()
         {
-            var registrationDisabled = CheckBool(CheckString(nameof(ServerConfig.DisableRegistration)));
-            return registrationDisabled;
+            //self-registration is not offered: accounts are created by an administrator.
+            return true;
         }
         public string GetServerPostgresConnection()
         {

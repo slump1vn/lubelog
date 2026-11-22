@@ -53,12 +53,19 @@ function bindTabEvent() {
             case "expense-tab":
                 loadHouseholdExpenses(0);
                 break;
+            case "overview-tab":
+                loadFinanceDashboard();
+                break;
             case "budget-tab":
                 loadBudget(false);
                 break;
             case "assistant-tab":
                 loadAssistant();
                 break;
+        }
+        let shownTabModule = getAppModuleOfTab(e.target.id);
+        if (isAppModule(shownTabModule) && shownTabModule != getStoredAppModule()) {
+            applyAppModule(shownTabModule);
         }
         $(`.lubelogger-tab #${e.target.id}`).addClass('active');
         $(`.lubelogger-mobile-nav #${e.target.id}`).addClass('active');
@@ -78,6 +85,9 @@ function bindTabEvent() {
                     break;
                 case "expense-tab":
                     $("#expense-tab-pane").html("");
+                    break;
+                case "overview-tab":
+                    $("#overview-tab-pane").html("");
                     break;
                 case "budget-tab":
                     $("#budget-tab-pane").html("");
@@ -727,6 +737,40 @@ function showUserApiKeyModal() {
     });
 }
 
+// Devices signed in to this account; each one can be signed out on its own.
+function showUserSessionsModalFromUserModal() {
+    $('#accountInformationModal').modal('hide');
+    showUserSessionsModal();
+}
+function showUserSessionsModal() {
+    $.get('/Home/GetUserSessionsModal', function (data) {
+        $('#userSessionsModalContent').html(data);
+        showBudgetTimes('#userSessionsModalContent', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        $('#userSessionsModal').modal('show');
+    });
+}
+function hideUserSessionsModal() {
+    $('#userSessionsModal').modal('hide');
+}
+function endUserSession(sessionId) {
+    $.post('/Home/EndUserSession', { sessionId: sessionId }, function (data) {
+        if (data.success) {
+            showUserSessionsModal();
+        } else {
+            errorToast(genericErrorMessage());
+        }
+    });
+}
+function endOtherUserSessions() {
+    $.post('/Home/EndOtherUserSessions', function (data) {
+        if (data.success) {
+            showUserSessionsModal();
+        } else {
+            errorToast(genericErrorMessage());
+        }
+    });
+}
+
 function hideUserApiKeyModal() {
     $('#userApiKeyModal').modal('hide');
 }
@@ -896,9 +940,56 @@ function generateTokenForUser() {
         }
     });
 }
+//the app has two top-level functions; each shows its own tabs, tabs marked "shared" show in both.
+const appModuleDefaultTabs = { finance: 'overview', vehicles: 'garage' };
+function isAppModule(module) {
+    return Object.prototype.hasOwnProperty.call(appModuleDefaultTabs, module);
+}
+function getStoredAppModule() {
+    try {
+        let stored = localStorage.getItem('appModule');
+        if (isAppModule(stored)) {
+            return stored;
+        }
+    } catch (e) { }
+    return 'finance';
+}
+function getAppModuleOfTab(tabId) {
+    return $(`[data-module] > #${tabId}`).first().parent().attr('data-module');
+}
+function applyAppModule(module) {
+    if (!isAppModule(module)) {
+        return;
+    }
+    try { localStorage.setItem('appModule', module); } catch (e) { }
+    $('[data-module]').each(function () {
+        let itemModule = $(this).attr('data-module');
+        $(this).toggleClass('d-none', itemModule != 'shared' && itemModule != module);
+    });
+    $('[data-module-switch]').each(function () {
+        let isCurrent = $(this).attr('data-module-switch') == module;
+        $(this).toggleClass('active', isCurrent).attr('aria-pressed', isCurrent ? 'true' : 'false');
+    });
+    if (typeof checkNavBarOverflow === 'function') {
+        checkNavBarOverflow();
+    }
+}
+function switchAppModule(module) {
+    if (!isAppModule(module)) {
+        return;
+    }
+    applyAppModule(module);
+    $(`#${appModuleDefaultTabs[module]}-tab`).first().tab('show');
+}
 function loadTabFromURL() {
-    let tabFromURL = getTabNameFromURL('garage');
-    waitForElement(`#${tabFromURL}`, () => { $(`#${tabFromURL}`).tab('show'); }, '');
+    let module = getStoredAppModule();
+    let tabFromURL = getTabNameFromURL(appModuleDefaultTabs[module]);
+    let tabModule = getAppModuleOfTab(tabFromURL);
+    if (isAppModule(tabModule)) {
+        module = tabModule;
+    }
+    applyAppModule(module);
+    waitForElement(`#${tabFromURL}`, () => { $(`#${tabFromURL}`).first().tab('show'); }, '');
 }
 $(function () {
     bindTabEvent();

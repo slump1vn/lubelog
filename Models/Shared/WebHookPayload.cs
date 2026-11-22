@@ -1,4 +1,5 @@
-﻿using System.Text.Json.Serialization;
+﻿using CarCareTracker.Helper;
+using System.Text.Json.Serialization;
 
 namespace CarCareTracker.Models
 {
@@ -22,9 +23,7 @@ namespace CarCareTracker.Models
     }
     public class DiscordWebHook
     {
-        public string Username { get { return "LubeLogger"; } }
-        [JsonPropertyName("avatar_url")]
-        public string AvatarUrl { get { return "https://hargata.github.io/hargata/lubelogger_logo_small.png"; } }
+        public string Username { get { return StaticHelper.AppName; } }
         public string Content { get; set; } = "";
         public static DiscordWebHook FromWebHookPayload(WebHookPayload webHookPayload)
         {

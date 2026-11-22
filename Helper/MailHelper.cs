@@ -44,11 +44,11 @@ namespace CarCareTracker.Helper
             if (string.IsNullOrWhiteSpace(emailAddress) || string.IsNullOrWhiteSpace(token)) {
                 return OperationResponse.Failed("Email Address or Token is invalid");
             }
-            string emailSubject = _translator.Translate(serverLanguage, "Your Registration Token for LubeLogger");
+            string emailSubject = string.Format(_translator.Translate(serverLanguage, "Your Registration Token for {0}"), StaticHelper.AppName);
             //construct email body
             string emailBody = "<html><body style='font-family: arial, sans-serif;text-align: center;'>"; //begin
             emailBody += $"<span style='display:block;font-size:1.5em;font-weight:bold;padding:10px 15px;'>{emailSubject}</span>";
-            emailBody += $"<span style='display:block;font-size:1.25em;padding:10px 15px;'>{_translator.Translate(serverLanguage, "A token has been generated on your behalf, please complete your registration for LubeLogger using the token")}</span>";
+            emailBody += $"<span style='display:block;font-size:1.25em;padding:10px 15px;'>{string.Format(_translator.Translate(serverLanguage, "A token has been generated on your behalf, please complete your registration for {0} using the token"), StaticHelper.AppName)}</span>";
             emailBody += $"<span style='display:block;margin:10px;'><span style='border:2px dashed black;border-radius:12px;padding:10px 15px;font-family:Courier New, Courier, monospace;letter-spacing:6px;font-weight:bold;font-size:22px;'>{token}</span></span>";
             if (!string.IsNullOrWhiteSpace(serverDomain))
             {
@@ -79,11 +79,11 @@ namespace CarCareTracker.Helper
             {
                 return OperationResponse.Failed("Email Address or Token is invalid");
             }
-            string emailSubject = _translator.Translate(serverLanguage, "Your Password Reset Token for LubeLogger");
+            string emailSubject = string.Format(_translator.Translate(serverLanguage, "Your Password Reset Token for {0}"), StaticHelper.AppName);
             //construct email body
             string emailBody = "<html><body style='font-family: arial, sans-serif;text-align: center;'>"; //begin
             emailBody += $"<span style='display:block;font-size:1.5em;font-weight:bold;padding:10px 15px;'>{emailSubject}</span>";
-            emailBody += $"<span style='display:block;font-size:1.25em;padding:10px 15px;'>{_translator.Translate(serverLanguage, "A token has been generated on your behalf, please reset your password for LubeLogger using the token")}</span>";
+            emailBody += $"<span style='display:block;font-size:1.25em;padding:10px 15px;'>{string.Format(_translator.Translate(serverLanguage, "A token has been generated on your behalf, please reset your password for {0} using the token"), StaticHelper.AppName)}</span>";
             emailBody += $"<span style='display:block;margin:10px;'><span style='border:2px dashed black;border-radius:12px;padding:10px 15px;font-family:Courier New, Courier, monospace;letter-spacing:6px;font-weight:bold;font-size:22px;'>{token}</span></span>";
             if (!string.IsNullOrWhiteSpace(serverDomain))
             {
@@ -113,7 +113,7 @@ namespace CarCareTracker.Helper
             {
                 return OperationResponse.Failed("Email Address or Token is invalid");
             }
-            string emailSubject = _translator.Translate(serverLanguage, "Test Email from LubeLogger");
+            string emailSubject = string.Format(_translator.Translate(serverLanguage, "Test Email from {0}"), StaticHelper.AppName);
             string emailBody = _translator.Translate(serverLanguage, "If you are seeing this email it means your SMTP configuration is functioning correctly");
             var result = await SendEmailAsync(testMailConfig, new List<string> { emailAddress }, emailSubject, emailBody);
             if (result)
@@ -138,10 +138,10 @@ namespace CarCareTracker.Helper
             {
                 return OperationResponse.Failed("Email Address or Token is invalid");
             }
-            string emailSubject = _translator.Translate(serverLanguage, "Your User Account Update Token for LubeLogger");
+            string emailSubject = string.Format(_translator.Translate(serverLanguage, "Your User Account Update Token for {0}"), StaticHelper.AppName);
             string emailBody = "<html><body style='font-family: arial, sans-serif;text-align: center;'>"; //begin
             emailBody += $"<span style='display:block;font-size:1.5em;font-weight:bold;padding:10px 15px;'>{emailSubject}</span>";
-            emailBody += $"<span style='display:block;font-size:1.25em;padding:10px 15px;'>{_translator.Translate(serverLanguage, "A token has been generated on your behalf, please update your account for LubeLogger using the token")}</span>";
+            emailBody += $"<span style='display:block;font-size:1.25em;padding:10px 15px;'>{string.Format(_translator.Translate(serverLanguage, "A token has been generated on your behalf, please update your account for {0} using the token"), StaticHelper.AppName)}</span>";
             emailBody += $"<span style='display:block;margin:10px;'><span style='border:2px dashed black;border-radius:12px;padding:10px 15px;font-family:Courier New, Courier, monospace;letter-spacing:6px;font-weight:bold;font-size:22px;'>{token}</span></span>";
             var result = await SendEmailAsync(mailConfig, new List<string> { emailAddress}, emailSubject, emailBody);
             if (result)
@@ -172,7 +172,7 @@ namespace CarCareTracker.Helper
             }
             //get email template, this file has to exist since it's a static file.
             var emailTemplatePath = _fileHelper.GetFullFilePath(StaticHelper.ReminderEmailTemplate);
-            string emailSubject = $"{_translator.Translate(serverLanguage, "Vehicle Reminders From LubeLogger")} - {DateTime.Now.ToShortDateString()}";
+            string emailSubject = $"{string.Format(_translator.Translate(serverLanguage, "Vehicle Reminders From {0}"), StaticHelper.AppName)} - {DateTime.Now.ToShortDateString()}";
             //construct html table.
             string emailBody = File.ReadAllText(emailTemplatePath);
             emailBody = emailBody.Replace("{VehicleInformation}", $"{vehicle.Year} {vehicle.Make} {vehicle.Model} #{StaticHelper.GetVehicleIdentifier(vehicle)}");
@@ -209,12 +209,12 @@ namespace CarCareTracker.Helper
             var message = new MimeMessage();
             message.From.Add(new MailboxAddress(from, from));
             message.To.Add(new MailboxAddress(emailAddress, emailAddress));
-            string emailSubject = $"{_translator.Translate(serverLanguage, "Automated Backup From LubeLogger")} - {DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss")}";
+            string emailSubject = $"{string.Format(_translator.Translate(serverLanguage, "Automated Backup From {0}"), StaticHelper.AppName)} - {DateTime.Now.ToString("yyyy-MM-dd-HH-mm-ss")}";
             message.Subject = emailSubject;
             //construct email body
             string emailBody = "<html><body style='font-family: arial, sans-serif;text-align: center;'>"; //begin
             emailBody += $"<span style='display:block;font-size:1.5em;font-weight:bold;padding:10px 15px;'>{emailSubject}</span>";
-            emailBody += $"<span style='display:block;font-size:1.25em;padding:10px 15px;'>{_translator.Translate(serverLanguage, "Review the attached file containing a backup of your LubeLogger instance")}</span>";
+            emailBody += $"<span style='display:block;font-size:1.25em;padding:10px 15px;'>{string.Format(_translator.Translate(serverLanguage, "Review the attached file containing a backup of your {0} instance"), StaticHelper.AppName)}</span>";
             emailBody += "</body></html>"; //end
             var builder = new BodyBuilder();
             builder.HtmlBody = emailBody;

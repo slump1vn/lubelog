@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1125 2436" width="1125" height="2436">
+  <rect width="1125" height="2436" fill="#0f172a"/>
+  <g transform="translate(402 950) scale(0.625)">
+    <rect width="512" height="512" rx="112" fill="#14b8a6"/>
+    <path d="M256 92 L432 236 L392 236 L392 412 L120 412 L120 236 L80 236 Z" fill="#ffffff"/>
+    <circle cx="256" cy="310" r="78" fill="#f5b301"/>
+    <text x="256" y="342" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-weight="700" font-size="96" fill="#ffffff">₫</text>
+  </g>
+  <text x="562" y="1400" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-weight="700" font-size="96" fill="#ffffff">Sói &amp; Thỏ</text>
+  <text x="562" y="1480" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-weight="600" font-size="52" fill="#f5b301">Tài chính gia đình</text>
+</svg>

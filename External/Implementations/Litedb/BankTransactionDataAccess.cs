@@ -54,6 +54,23 @@ namespace CarCareTracker.External.Implementations
                 .Select(AsUtc)
                 .ToList();
         }
+        public List<BankTransaction> GetPage(int householdId, DateTime? beforeUtc, int beforeId, int limit)
+        {
+            var query = GetTable().Query().Where(x => x.HouseholdId == householdId);
+            if (beforeUtc.HasValue)
+            {
+                var before = DateTime.SpecifyKind(beforeUtc.Value, DateTimeKind.Utc);
+                query = query.Where(x => x.OccurredAtUtc < before || (x.OccurredAtUtc == before && x.Id < beforeId));
+            }
+            return query
+                .OrderByDescending(x => x.OccurredAtUtc)
+                .ToList()
+                .Select(AsUtc)
+                //LiteDB sorts on one field, so ties on the booking time are ordered by id here.
+                .OrderByDescending(x => x.OccurredAtUtc).ThenByDescending(x => x.Id)
+                .Take(limit)
+                .ToList();
+        }
         public List<BankTransaction> GetSince(int householdId, DateTime fromUtc)
         {
             return GetTable().Query()

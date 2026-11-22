@@ -125,4 +125,31 @@ namespace CarCareTracker.Models
         public long CycleOut { get; set; }
         public List<BankTransaction> Recent { get; set; } = new List<BankTransaction>();
     }
+    public class BalancePoint
+    {
+        public DateOnly Date { get; set; }
+        public long Balance { get; set; }
+    }
+    /// <summary>A payday or debt payment that is coming up, from the budget profile.</summary>
+    public class UpcomingMoney
+    {
+        public DateOnly Date { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public long Amount { get; set; }
+        public TransferDirection Direction { get; set; }
+    }
+    /// <summary>The home dashboard: how the joint account is doing in the current budget cycle.</summary>
+    public class FinanceDashboardViewModel
+    {
+        public SharedAccountViewModel Account { get; set; } = new SharedAccountViewModel();
+        public bool HasProfile { get; set; }
+        public DateOnly Today { get; set; }
+        public DateOnly CycleEnd { get; set; }
+        public int DayOfCycle { get; set; }
+        public int DaysInCycle { get; set; }
+        public long Net => Account.CycleIn - Account.CycleOut;
+        public long? ProjectedOut { get; set; }
+        public List<BalancePoint> BalanceHistory { get; set; } = new List<BalancePoint>();
+        public List<UpcomingMoney> Upcoming { get; set; } = new List<UpcomingMoney>();
+    }
 }

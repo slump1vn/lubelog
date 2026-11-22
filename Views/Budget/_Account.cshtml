@@ -41,11 +41,11 @@
                     <div class="fs-4">@(Model.Balance.HasValue ? Money(Model.Balance.Value) : "---")</div>
                 </div>
                 <div class="col-6 col-md-4">
-                    <div class="text-muted small">@string.Format(T("Money in since {0}"), Model.CycleStart.ToString("d", CultureInfo.CurrentCulture))</div>
+                    <div class="text-muted small">@string.Format(T("Money in since {0}"), Model.CycleStart.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture))</div>
                     <div class="fs-4 text-success">@Money(Model.CycleIn)</div>
                 </div>
                 <div class="col-6 col-md-4">
-                    <div class="text-muted small">@string.Format(T("Money out since {0}"), Model.CycleStart.ToString("d", CultureInfo.CurrentCulture))</div>
+                    <div class="text-muted small">@string.Format(T("Money out since {0}"), Model.CycleStart.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture))</div>
                     <div class="fs-4 text-danger">@Money(Model.CycleOut)</div>
                 </div>
             </div>

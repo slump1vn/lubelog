@@ -941,3 +941,14 @@ html[data-bs-theme="dark"] .swal2-validation-message {
 .dual-range input[type="range"].dual-range-top {
     z-index: 3;
 }
+
+/* top-level function switch (Family Finance / Vehicle Maintenance) */
+.app-module-switch .btn {
+    font-weight: 500;
+}
+.app-module-switch .btn.active {
+    color: #fff;
+}
+.lubelogger-mobile-nav [data-module-switch].active {
+    font-weight: 600;
+}

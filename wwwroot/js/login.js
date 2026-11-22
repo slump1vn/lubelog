@@ -16,27 +16,21 @@
         } else {
             errorToast(data.message);
         }
-    })
+    }).fail(showLoginRequestError);
+}
+// The server answers 429 after too many sign-in attempts from this address.
+function showLoginRequestError(xhr) {
+    if (xhr && xhr.status == 429) {
+        errorToast((xhr.responseJSON && xhr.responseJSON.message) || 'Too many attempts. Please wait a few minutes and try again.');
+    } else {
+        errorToast(genericErrorMessage());
+    }
 }
 function checkPersistLoginState() {
     let storedPersistLogin = localStorage.getItem('persistLogin');
     if (storedPersistLogin) {
         $('#inputPersistent').prop('checked', JSON.parse(storedPersistLogin));
     }
-}
-function performRegistration() {
-    let token = $("#inputToken").val();
-    let userName = $("#inputUserName").val();
-    let userPassword = $("#inputUserPassword").val();
-    let userEmail = $("#inputEmail").val();
-    $.post('/Login/Register', { userName: userName, password: userPassword, token: token, emailAddress: userEmail }, function (data) {
-        if (data.success) {
-            successToast(data.message);
-            setTimeout(function () { window.location.href = '/Login/Index' }, 500);
-        } else {
-            errorToast(data.message);
-        }
-    });
 }
 function requestPasswordReset() {
     let userName = $("#inputUserName").val();
@@ -47,7 +41,7 @@ function requestPasswordReset() {
         } else {
             errorToast(data.message);
         }
-    })
+    }).fail(showLoginRequestError);
 }
 function performPasswordReset() {
     let token = $("#inputToken").val();
@@ -60,7 +54,7 @@ function performPasswordReset() {
         } else {
             errorToast(data.message);
         }
-    });
+    }).fail(showLoginRequestError);
 }
 
 function remoteLogin() {
@@ -74,31 +68,4 @@ function remoteLogin() {
             window.location.href = data;
         }
     })
-}
-function sendRegistrationToken() {
-    Swal.fire({
-        title: 'Please Provide an Email Address',
-        html: `
-                            <input type="text" id="inputTokenEmail" class="swal2-input" placeholder="Email Address" onkeydown="handleSwalEnter(event)">
-                            `,
-        confirmButtonText: 'Send',
-        focusConfirm: false,
-        preConfirm: () => {
-            const tokenEmail = $("#inputTokenEmail").val();
-            if (!tokenEmail || tokenEmail.trim() == '') {
-                Swal.showValidationMessage(`Please enter a valid email address`);
-            }
-            return { tokenEmail }
-        },
-    }).then(function (result) {
-        if (result.isConfirmed) {
-            $.post('/Login/SendRegistrationToken', { emailAddress: result.value.tokenEmail }, function (data) {
-                if (data.success) {
-                    successToast(data.message);
-                } else {
-                    errorToast(data.message);
-                }
-            });
-        }
-    });
 }
