@@ -1,6 +1,14 @@
-# Server side for the iPhone app (phase 0)
+# Server side for the mobile app
 
-This is what the server offers the native iOS app. The app itself lives in `ios/` (phase 1).
+This is what the server offers the Flutter app in `mobile/` (iPhone and Android, see [MOBILE.md](MOBILE.md)).
+
+| Phone | `client_id` | `redirect_uri` |
+|---|---|---|
+| iPhone | `soitho-ios` | `vn.digifusion.finance:/oauth/callback` |
+| Android | `soitho-android` | `vn.digifusion.soitho:/oauth/callback` |
+
+The steps below use the iPhone values; Android is the same with its own pair (Custom Tabs instead of
+`ASWebAuthenticationSession`, Android Keystore instead of the Keychain).
 
 ## Signing in
 
@@ -35,10 +43,17 @@ The contract is [`wwwroot/api/openapi-v1.json`](../wwwroot/api/openapi-v1.json),
 | `GET /api/v1/me` | user, household |
 | `GET /api/v1/finance/dashboard` | balance, money in and out this cycle, balance per day, coming up, last 8 transactions |
 | `GET /api/v1/finance/transactions?limit=50&cursor=...` | transactions newest first; pass `nextCursor` back for older ones |
-| `GET /api/v1/finance/budget` | paydays, funds, limits, debts (404 until set up on the website) |
+| `GET /api/v1/finance/budget` | paydays and where the money goes, funds and limits, debts (404 until set up on the website); no account number |
 | `POST /api/v1/food/read` | reads 1 to 3 label photos (multipart `files`) with the home AI; photos are not stored |
 | `POST /api/v1/food/analyze` | rates a checked reading; `save: true` adds it to the household history |
 | `GET /api/v1/food/scans`, `GET /api/v1/food/scans/{id}` | saved label scans, with the caller's own allergy marks |
+| `PUT /api/v1/finance/budget` | replaces the plan; needs `If-Match` with the `ETag` from GET (428 without, 412 when the partner saved in between); the joint account is kept |
+| `GET /api/v1/finance/reconciliation` | balance changes no transaction explains (gaps), entries made by hand, categories |
+| `POST /api/v1/finance/manual-transactions` | explains (part of) a gap; send `Idempotency-Key` (a new UUID per entry): a retry returns the first entry (200) instead of adding another (201) |
+| `DELETE /api/v1/finance/manual-transactions/{id}` | deletes an entry made by hand (bank lines cannot be deleted) |
+| `POST /api/v1/finance/account/sync` | asks SePay now; within 30 s of the last sync its result comes back with `recent: true` |
+| `POST /api/v1/finance/receipts/read` | reads one receipt or transfer photo (multipart `file`) with the home AI and lists the money-out gaps it may explain; nothing is stored |
+| `GET /api/v1/me/sessions`, `DELETE /api/v1/me/sessions/{id}` | where the user is signed in; sign one device out |
 | `GET /api/v1/assistant/suggestions` | starter questions for the chat, and whether the home AI is on |
 | `GET /api/v1/assistant/messages?before=&limit=` | the caller's own chat history (kept 30 days), oldest first per page |
 | `POST /api/v1/assistant/messages` | `{ "text": "..." }`: one question or vehicle log entry; returns an answer |
@@ -46,9 +61,12 @@ The contract is [`wwwroot/api/openapi-v1.json`](../wwwroot/api/openapi-v1.json),
 | `POST /api/v1/assistant/photo` | multipart `file` (+ optional `hint=food`): receipt, transfer or food label |
 | `POST /api/v1/assistant/drafts`, `POST /api/v1/assistant/payments` | save a checked vehicle draft / mark a record paid from an answer |
 
-The food `POST` calls and every assistant call that sends something need the `Authorization: Bearer` header (a browser cookie alone is refused with 403). See [FOOD-LABEL.md](FOOD-LABEL.md) and [ASSISTANT.md](ASSISTANT.md).
+Every write (`POST`, `PUT`, `DELETE`) needs the `Authorization: Bearer` header (a browser cookie alone is refused with 403). See [FOOD-LABEL.md](FOOD-LABEL.md) for the food calls and [ASSISTANT.md](ASSISTANT.md) for the assistant.
 
-Answers are never cached. Errors are RFC 9457 problem details (`application/problem+json`).
+Answers are never cached. Errors are RFC 9457 problem details (`application/problem+json`). When a
+request breaks a business rule, the problem has `errors: [{ code, message, args }]`: `code` is stable
+(for example `amount_exceeds_gap`, or the English message in snake case) so the app shows it in
+Vietnamese; `message` is English, `args` fill its `{0}`, `{1}`.
 
 ## Settings on the server
 

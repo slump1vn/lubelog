@@ -40,6 +40,46 @@ namespace CarCareTracker.Tests
         }
 
         [Fact]
+        public void BudgetForTheAppsLeavesOutTheAccountNumberAndSortsByDay()
+        {
+            var profile = new BudgetProfile
+            {
+                Id = -1,
+                CycleStartDay = 5,
+                ApprovalThreshold = 1_000_000,
+                SharedAccount = new SharedAccount { AccountNumber = "123456789", BankName = "VietinBank" },
+                Incomes = new()
+                {
+                    new IncomeSource { Key = "b", Name = "Lương 2", Amount = 16_000_000, PayDay = 20 },
+                    new IncomeSource
+                    {
+                        Key = "a", Name = "Lương 1", Amount = 9_000_000, PayDay = 5,
+                        Allocations = new() { new IncomeAllocation { FundKey = "debt", Amount = 8_000_000, Order = 2 }, new IncomeAllocation { FundKey = "personal", Amount = 1_000_000, Order = 1 } }
+                    }
+                },
+                Funds = new()
+                {
+                    new Fund { Key = "shared", Kind = FundKind.Shared, MonthlyAmount = 10_000_000, OwnerUserId = 3, Categories = new() { new BudgetCategory { Key = "food", Name = "Ăn uống", MonthlyLimit = 6_000_000 } } },
+                    new Fund { Key = "sos", Kind = FundKind.Emergency, TargetAmount = 25_000_000 },
+                    new Fund { Key = "soi", Kind = FundKind.Personal, OwnerUserId = 7 }
+                },
+                Debts = new() { new Debt { Key = "late", DueDay = 21 }, new Debt { Key = "early", DueDay = 3, RemainingBalance = null } }
+            };
+            var dto = FinanceApiRules.ToDto(profile);
+            var json = System.Text.Json.JsonSerializer.Serialize(dto);
+            Assert.DoesNotContain("123456789", json);
+            Assert.Equal(new[] { 5, 20 }, dto.Incomes.Select(x => x.PayDay));
+            Assert.Equal(new[] { "personal", "debt" }, dto.Incomes[0].Allocations.Select(x => x.FundKey));
+            Assert.Equal(new[] { "early", "late" }, dto.Debts.Select(x => x.Key));
+            Assert.Equal(new[] { "shared", "emergency", "personal" }, dto.Funds.Select(x => x.Kind));
+            Assert.Null(dto.Funds[0].TargetAmount);
+            Assert.Null(dto.Funds[0].OwnerUserId);
+            Assert.Equal(25_000_000, dto.Funds[1].TargetAmount);
+            Assert.Equal(7, dto.Funds[2].OwnerUserId);
+            Assert.Equal(6_000_000, dto.Funds[0].Categories.Single().MonthlyLimit);
+        }
+
+        [Fact]
         public void PageSizeStaysWithinLimits()
         {
             Assert.Equal(50, FinanceApiRules.ClampPageSize(null));

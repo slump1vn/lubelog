@@ -18,6 +18,16 @@ namespace CarCareTracker.Logic
     {
         public int Id { get; set; }
     }
+    public class ManualEntryResult
+    {
+        public BankTransaction? Entry { get; set; }
+        /// <summary>True when the entry was stored by an earlier request with the same key.</summary>
+        public bool Replayed { get; set; }
+        /// <summary>English messages of what is wrong with the input; empty on success.</summary>
+        public List<string> Issues { get; set; } = new List<string>();
+        /// <summary>True when the gap is gone (explained by someone else, or a newer bank line).</summary>
+        public bool GapGone { get; set; }
+    }
     public class ReconciliationViewModel
     {
         public bool HasAccount { get; set; }
@@ -61,6 +71,11 @@ namespace CarCareTracker.Logic
     {
         ReconciliationViewModel GetView(int householdId);
         OperationResponse AddManual(int householdId, int userId, ManualTransactionInput input);
+        /// <summary>
+        /// Adds a manual entry. With a fingerprint (from an idempotency key), an entry already stored under it
+        /// is returned as a replay instead of adding another.
+        /// </summary>
+        ManualEntryResult AddManualEntry(int householdId, int userId, ManualTransactionInput input, string? fingerprint);
         OperationResponse DeleteManual(int householdId, int id);
         StatementImportResult ImportStatement(int householdId, int userId, byte[] content, string fileName, bool apply);
     }
@@ -123,15 +138,44 @@ namespace CarCareTracker.Logic
 
         public OperationResponse AddManual(int householdId, int userId, ManualTransactionInput input)
         {
+            var result = AddManualEntry(householdId, userId, input, null);
+            return result.Issues.Any() ? OperationResponse.Failed(string.Join("\n", result.Issues)) : OperationResponse.Succeed("Saved");
+        }
+
+        private static readonly object manualLock = new object();
+        public ManualEntryResult AddManualEntry(int householdId, int userId, ManualTransactionInput input, string? fingerprint)
+        {
+            //one at a time: two phones explaining the same gap must not both pass the "fits in the gap" check.
+            lock (manualLock)
+            {
+                return AddManualLocked(householdId, userId, input, fingerprint);
+            }
+        }
+        private ManualEntryResult AddManualLocked(int householdId, int userId, ManualTransactionInput input, string? fingerprint)
+        {
+            var result = new ManualEntryResult();
             var all = All(householdId);
+            if (!string.IsNullOrEmpty(fingerprint))
+            {
+                var earlier = all.FirstOrDefault(x => x.Fingerprint == fingerprint);
+                if (earlier != null)
+                {
+                    result.Entry = earlier;
+                    result.Replayed = true;
+                    return result;
+                }
+            }
             var gap = ReconciliationRules.FindGaps(all).FirstOrDefault(x => x.Key == input.GapKey);
             if (gap == null)
             {
-                return OperationResponse.Failed("This difference is already explained or no longer exists. Reload the page.");
+                result.GapGone = true;
+                result.Issues.Add("This difference is already explained or no longer exists. Reload the page.");
+                return result;
             }
             if (!DateOnly.TryParseExact(input.Date ?? string.Empty, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var date))
             {
-                return OperationResponse.Failed("Pick a date");
+                result.Issues.Add("Pick a date");
+                return result;
             }
             var occurredAtUtc = DateTime.SpecifyKind(date.ToDateTime(new TimeOnly(12, 0)) - SepayRules.VietnamOffset, DateTimeKind.Utc);
             var issues = ReconciliationRules.ValidateManual(input.Amount, occurredAtUtc, input.Category, input.Note, DateTime.UtcNow);
@@ -141,7 +185,8 @@ namespace CarCareTracker.Logic
             }
             if (issues.Any())
             {
-                return OperationResponse.Failed(string.Join("\n", issues));
+                result.Issues = issues;
+                return result;
             }
             //the entry must sit between the two bank lines around the gap to explain it.
             var earliest = gap.FromUtc.AddSeconds(1);
@@ -172,14 +217,17 @@ namespace CarCareTracker.Logic
                 Source = ReconciliationRules.SourceManual,
                 CreatedByUserId = userId,
                 ImportedAtUtc = DateTime.UtcNow,
-                Fingerprint = "manual:" + Guid.NewGuid().ToString("N")
+                Fingerprint = string.IsNullOrEmpty(fingerprint) ? "manual:" + Guid.NewGuid().ToString("N") : fingerprint
             };
             if (!_transactionData.AddIfNew(transaction))
             {
-                return OperationResponse.Failed("The entry could not be saved");
+                result.Issues.Add("The entry could not be saved");
+                return result;
             }
-            return OperationResponse.Succeed("Saved");
+            result.Entry = transaction;
+            return result;
         }
+
 
         public OperationResponse DeleteManual(int householdId, int id)
         {

@@ -41,6 +41,16 @@ namespace CarCareTracker.Tests
         }
 
         [Fact]
+        public void EachAppOnlyAcceptsItsOwnRedirect()
+        {
+            var android = OAuthRules.FindClient(OAuthRules.AndroidClientId)!;
+            Assert.True(OAuthRules.IsRegisteredRedirect(android, OAuthRules.AndroidRedirectUri));
+            Assert.False(OAuthRules.IsRegisteredRedirect(android, OAuthRules.IosRedirectUri));
+            var ios = OAuthRules.FindClient(OAuthRules.IosClientId)!;
+            Assert.False(OAuthRules.IsRegisteredRedirect(ios, OAuthRules.AndroidRedirectUri));
+        }
+
+        [Fact]
         public void RefreshTokensCarryTheirSession()
         {
             var token = OAuthRules.FormatRefreshToken(42, "secret-part");
