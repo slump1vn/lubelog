@@ -324,6 +324,23 @@
           }
         }
       }
+    },
+    "/api/v1/assistant/suggestions": {
+      "get": {"summary": "Questions to show as buttons when the chat opens", "operationId": "assistantSuggestions", "responses": {"200": {"description": "Suggestions", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AssistantSuggestions"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}}}
+    },
+    "/api/v1/assistant/messages": {
+      "get": {"summary": "The signed-in user's own chat history (kept 30 days)", "operationId": "assistantHistory", "description": "Each page is oldest first. Pass nextBefore back as before for older messages.", "parameters": [{"name": "before", "in": "query", "schema": {"type": "integer", "minimum": 0}}, {"name": "limit", "in": "query", "schema": {"type": "integer", "minimum": 1, "maximum": 200, "default": 50}}], "responses": {"200": {"description": "History page", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AssistantHistoryPage"}}}}, "401": {"$ref": "#/components/responses/Unauthorized"}}},
+      "post": {"summary": "Send one question or vehicle log entry; returns the answer", "operationId": "assistantSend", "description": "Needs the Authorization: Bearer header. Answers only read data: amounts are computed by the server, the AI only picks which lookup to run. A vehicle entry comes back as a draft (kind=draft) that is saved only by POST /api/v1/assistant/drafts. Text is answered in Vietnamese.", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AssistantChatRequest"}}}}, "responses": {"200": {"description": "The answer", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AssistantReply"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Problem"}, "429": {"description": "Too many messages (at most 20 a minute per user); see Retry-After", "content": {"application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}}}}},
+      "delete": {"summary": "Delete the user's whole chat history", "operationId": "assistantClear", "description": "Needs the Authorization: Bearer header.", "responses": {"204": {"description": "Deleted"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Problem"}}}
+    },
+    "/api/v1/assistant/photo": {
+      "post": {"summary": "Read one photo: receipt, bank transfer or food label", "operationId": "assistantPhoto", "description": "Needs the Authorization: Bearer header. JPEG or PNG, at most 8 MB. hint=food reads it as a food label; otherwise the receipt reader runs first and falls back to the food label reader. Receipts and transfers come back as drafts to confirm; food labels are rated but not saved (save them with POST /api/v1/food/analyze after the user checks the numbers). The photo is not kept in the history.", "requestBody": {"required": true, "content": {"multipart/form-data": {"schema": {"type": "object", "required": ["file"], "properties": {"file": {"type": "string", "format": "binary"}, "hint": {"type": "string", "enum": ["", "food"]}}}}}}, "responses": {"200": {"description": "The answer", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AssistantReply"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Problem"}, "429": {"description": "Too many messages (at most 20 a minute per user); see Retry-After", "content": {"application/problem+json": {"schema": {"$ref": "#/components/schemas/Problem"}}}}}}
+    },
+    "/api/v1/assistant/drafts": {
+      "post": {"summary": "Save a vehicle draft from an answer, after the user checked it", "operationId": "assistantSaveDraft", "description": "Needs the Authorization: Bearer header and edit access to the vehicle.", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AiDraft"}}}}, "responses": {"200": {"description": "success=false with a message when it could not be saved", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/OperationResult"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Problem"}}}
+    },
+    "/api/v1/assistant/payments": {
+      "post": {"summary": "Mark an existing vehicle record as paid by a transfer from an answer", "operationId": "assistantAttachPayment", "description": "Needs the Authorization: Bearer header and edit access to the record's vehicle. Use one of the matches of a kind=payment answer.", "requestBody": {"required": true, "content": {"application/json": {"schema": {"$ref": "#/components/schemas/AiAttachPaymentRequest"}}}}, "responses": {"200": {"description": "success=false with a message when it could not be saved", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/OperationResult"}}}}, "400": {"$ref": "#/components/responses/Problem"}, "401": {"$ref": "#/components/responses/Unauthorized"}, "403": {"$ref": "#/components/responses/Problem"}}}
     }
   },
   "components": {
@@ -757,6 +774,58 @@
           "reading": { "$ref": "#/components/schemas/FoodLabelReading" },
           "analysis": { "$ref": "#/components/schemas/FoodLabelAnalysis" }
         }
+      },
+      "AssistantSuggestions": {
+        "type": "object",
+        "properties": {"modelConfigured": {"type": "boolean"}, "suggestions": {"type": "array", "items": {"type": "string"}}}
+      },
+      "AssistantFact": {
+        "type": "object",
+        "description": "One labelled line of an answer, already formatted for display",
+        "properties": {"label": {"type": "string"}, "value": {"type": "string"}}
+      },
+      "AssistantMessage": {
+        "type": "object",
+        "properties": {"id": {"type": "integer"}, "userId": {"type": "integer"}, "role": {"type": "string", "enum": ["user", "assistant"]}, "text": {"type": "string"}, "kind": {"type": "string", "enum": ["text", "photo", "answer", "draft", "payment", "food", "help", "error"]}, "facts": {"type": "array", "items": {"$ref": "#/components/schemas/AssistantFact"}}, "createdAtUtc": {"type": "string", "format": "date-time"}}
+      },
+      "AssistantHistoryPage": {
+        "type": "object",
+        "properties": {"items": {"type": "array", "items": {"$ref": "#/components/schemas/AssistantMessage"}}, "nextBefore": {"type": ["integer", "null"]}}
+      },
+      "AssistantChatRequest": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {"text": {"type": "string", "minLength": 1, "maxLength": 1000}}
+      },
+      "AssistantReply": {
+        "type": "object",
+        "properties": {"messageId": {"type": "integer"}, "kind": {"type": "string", "enum": ["answer", "draft", "payment", "food", "help", "error"]}, "text": {"type": "string"}, "facts": {"type": "array", "items": {"$ref": "#/components/schemas/AssistantFact"}}, "suggestions": {"type": "array", "items": {"type": "string"}}, "warnings": {"type": "array", "items": {"type": "string"}}, "tool": {"type": "string", "description": "The lookup that answered: balance, cycle_summary, category, upcoming, recent, search, vehicle, help, or empty"}, "source": {"type": "string", "enum": ["rules", "ai"]}, "draft": {"oneOf": [{"$ref": "#/components/schemas/AiDraft"}, {"type": "null"}]}, "payment": {"oneOf": [{"$ref": "#/components/schemas/AiPayment"}, {"type": "null"}]}, "matches": {"type": "array", "items": {"$ref": "#/components/schemas/AiPaymentMatch"}}, "food": {"oneOf": [{"$ref": "#/components/schemas/FoodAnalyzeResult"}, {"type": "null"}]}}
+      },
+      "UploadedFile": {
+        "type": "object",
+        "properties": {"name": {"type": "string"}, "location": {"type": "string"}, "isPending": {"type": "boolean"}}
+      },
+      "AiDraft": {
+        "type": "object",
+        "description": "A vehicle record proposed by the assistant. intent: 1 service, 2 fuel, 3 other expense, 4 odometer.",
+        "properties": {"intent": {"type": "integer", "enum": [0, 1, 2, 3, 4, 5, 6]}, "vehicleId": {"type": "integer"}, "date": {"type": "string", "description": "Short date in the server culture"}, "mileage": {"type": "integer"}, "cost": {"type": "number"}, "fuelAmount": {"type": "number"}, "isFillToFull": {"type": "boolean"}, "description": {"type": "string"}, "tags": {"type": "array", "items": {"type": "string"}}, "notes": {"type": "string"}, "files": {"type": "array", "items": {"$ref": "#/components/schemas/UploadedFile"}}, "attachFiles": {"type": "boolean"}}
+      },
+      "AiPayment": {
+        "type": "object",
+        "description": "A bank transfer read from a screenshot; account numbers are masked",
+        "properties": {"amount": {"type": "number"}, "amountText": {"type": "string"}, "date": {"type": "string"}, "bank": {"type": "string"}, "reference": {"type": "string"}, "recipient": {"type": "string"}, "content": {"type": "string"}}
+      },
+      "AiPaymentMatch": {
+        "type": "object",
+        "properties": {"recordType": {"type": "integer"}, "recordId": {"type": "integer"}, "vehicleId": {"type": "integer"}, "vehicleName": {"type": "string"}, "date": {"type": "string"}, "description": {"type": "string"}, "cost": {"type": "number"}, "costText": {"type": "string"}}
+      },
+      "AiAttachPaymentRequest": {
+        "type": "object",
+        "properties": {"recordType": {"type": "integer"}, "recordId": {"type": "integer"}, "payment": {"$ref": "#/components/schemas/AiPayment"}, "files": {"type": "array", "items": {"$ref": "#/components/schemas/UploadedFile"}}, "attachFiles": {"type": "boolean"}}
+      },
+      "OperationResult": {
+        "type": "object",
+        "properties": {"success": {"type": "boolean"}, "message": {"type": "string"}}
       }
     }
   }

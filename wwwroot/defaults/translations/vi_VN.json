@@ -1027,5 +1027,20 @@
 "large_serving": "khẩu phần lớn",
 "may_contain": "có thể chứa",
 "per_100_g/ml": "trên 100 g/ml",
-"per_serving": "trên một khẩu phần"
+"per_serving": "trên một khẩu phần",
+"Conversation": "Cuộc trò chuyện",
+"Show_older_messages": "Xem tin cũ hơn",
+"Ask_about_the_joint_account,_the_budget_or_your_vehicles._For_example:": "Hỏi về tài khoản chung, ngân sách hoặc xe của bạn. Ví dụ:",
+"Or_send_a_photo_of_a_receipt,_a_bank_transfer_or_a_food_label": "Hoặc gửi ảnh hóa đơn, ảnh chuyển khoản hay nhãn thực phẩm",
+"Suggestions": "Gợi ý",
+"Send_a_photo": "Gửi ảnh",
+"Receipt_or_bank_transfer": "Hóa đơn hoặc chuyển khoản",
+"Food_label": "Nhãn thực phẩm",
+"Answers_are_read_from_your_data;_nothing_is_saved_until_you_press_Save._History_is_kept_for_30_days.": "Câu trả lời lấy từ dữ liệu của bạn, không có gì được lưu nếu bạn chưa bấm Lưu. Lịch sử giữ 30 ngày.",
+"Check_and_save_in_Food_labels": "Kiểm tra và lưu ở tab Nhãn thực phẩm",
+"AI_assistant": "Trợ lý AI",
+"Delete_chat_history": "Xóa lịch sử trò chuyện",
+"Loading": "Đang tải",
+"Delete_the_whole_chat_history?": "Xóa toàn bộ lịch sử trò chuyện?",
+"Open_Family_Finance_to_check_this_label": "Mở Tài chính gia đình để kiểm tra nhãn này"
 }

@@ -54,8 +54,14 @@ The contract is [`wwwroot/api/openapi-v1.json`](../wwwroot/api/openapi-v1.json),
 | `POST /api/v1/finance/account/sync` | asks SePay now; within 30 s of the last sync its result comes back with `recent: true` |
 | `POST /api/v1/finance/receipts/read` | reads one receipt or transfer photo (multipart `file`) with the home AI and lists the money-out gaps it may explain; nothing is stored |
 | `GET /api/v1/me/sessions`, `DELETE /api/v1/me/sessions/{id}` | where the user is signed in; sign one device out |
+| `GET /api/v1/assistant/suggestions` | starter questions for the chat, and whether the home AI is on |
+| `GET /api/v1/assistant/messages?before=&limit=` | the caller's own chat history (kept 30 days), oldest first per page |
+| `POST /api/v1/assistant/messages` | `{ "text": "..." }`: one question or vehicle log entry; returns an answer |
+| `DELETE /api/v1/assistant/messages` | deletes the caller's chat history |
+| `POST /api/v1/assistant/photo` | multipart `file` (+ optional `hint=food`): receipt, transfer or food label |
+| `POST /api/v1/assistant/drafts`, `POST /api/v1/assistant/payments` | save a checked vehicle draft / mark a record paid from an answer |
 
-Every write (`POST`, `PUT`, `DELETE`) needs the `Authorization: Bearer` header (a browser cookie alone is refused with 403). See [FOOD-LABEL.md](FOOD-LABEL.md) for the food calls.
+Every write (`POST`, `PUT`, `DELETE`) needs the `Authorization: Bearer` header (a browser cookie alone is refused with 403). See [FOOD-LABEL.md](FOOD-LABEL.md) for the food calls and [ASSISTANT.md](ASSISTANT.md) for the assistant.
 
 Answers are never cached. Errors are RFC 9457 problem details (`application/problem+json`). When a
 request breaks a business rule, the problem has `errors: [{ code, message, args }]`: `code` is stable

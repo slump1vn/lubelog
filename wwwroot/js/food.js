@@ -10,6 +10,14 @@ function loadFood() {
             $("#food-tab-pane").html(data);
             foodPhotos = [];
             showBudgetTimes("#foodHistory", { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+            //a label read in the assistant on another page, to check here before saving.
+            try {
+                var handoff = sessionStorage.getItem('assistantFoodReading');
+                if (handoff) {
+                    sessionStorage.removeItem('assistantFoodReading');
+                    showFoodCheck(JSON.parse(handoff));
+                }
+            } catch (e) { }
         }
     });
 }

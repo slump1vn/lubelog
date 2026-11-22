@@ -18,6 +18,8 @@ namespace CarCareTracker.Logic
         OperationResponse SaveDraft(AiDraft draft, Vehicle vehicle, UserConfig userConfig, int userId, string userName);
         /// <summary>Asks the vision model about one image and parses its JSON answer; null when the model fails.</summary>
         Task<T?> AskVision<T>(string systemPrompt, string userMessage, JsonObject schema, string imageBase64) where T : class;
+        /// <summary>Asks the text model and parses its JSON answer; null when the model fails.</summary>
+        Task<T?> AskText<T>(string systemPrompt, string userMessage, JsonObject schema) where T : class;
     }
     /// <summary>
     /// Turns a chat message into a draft record or an answer.
@@ -284,6 +286,10 @@ namespace CarCareTracker.Logic
         public Task<T?> AskVision<T>(string systemPrompt, string userMessage, JsonObject schema, string imageBase64) where T : class
         {
             return AskModel<T>(VisionModelName, systemPrompt, userMessage, schema, imageBase64);
+        }
+        public Task<T?> AskText<T>(string systemPrompt, string userMessage, JsonObject schema) where T : class
+        {
+            return AskModel<T>(ModelName, systemPrompt, userMessage, schema);
         }
         private Task<ModelResult?> AskModel(string message, List<Vehicle> vehicles, DateTime today)
         {
@@ -595,7 +601,7 @@ namespace CarCareTracker.Logic
             string[] labels = { "đơn giá", "số lượng", "thành tiền", "cộng", "tổng", "vat", "thuế", "giảm giá", "chiết khấu", "tiền hàng" };
             return labels.Any(label => normalized.StartsWith(label));
         }
-        private static bool IsValidTempLocation(string location)
+        public static bool IsValidTempLocation(string location)
         {
             return System.Text.RegularExpressions.Regex.IsMatch(location ?? string.Empty, @"^/temp/[A-Za-z0-9-]+\.(png|jpg|jpeg)$", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         }
@@ -638,6 +644,7 @@ namespace CarCareTracker.Logic
                 return response;
             }
             response.Source = "ai";
+            response.ImageKind = image.kind;
             if (image.kind != "receipt" && image.kind != "transfer")
             {
                 response.Reply = _translator.Translate(language, "This does not look like a receipt or a bank transfer");

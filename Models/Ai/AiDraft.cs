@@ -96,5 +96,7 @@ namespace CarCareTracker.Models
         /// </summary>
         public AiPayment? Payment { get; set; }
         public List<AiPaymentMatch> Matches { get; set; } = new List<AiPaymentMatch>();
+        /// <summary>What the vision model saw in a photo: "receipt", "transfer" or "other"; empty for text.</summary>
+        public string ImageKind { get; set; } = string.Empty;
     }
 }
