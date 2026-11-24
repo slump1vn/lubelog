@@ -6,6 +6,9 @@ on:
   release:
     types: ["published"]
 
+permissions:
+  contents: read
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -13,16 +16,37 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Pushing needs the upstream registry secrets. On this fork (or any repo
+      # without them) the image is still built to prove the Dockerfile works,
+      # but nothing is pushed and the run stays green.
+      - name: Decide whether to push
+        id: mode
+        env:
+          DH_USER: ${{ secrets.DH_USER }}
+          DH_PASS: ${{ secrets.DH_PASS }}
+          GHCR_PAT: ${{ secrets.GHCR_PAT }}
+        run: |
+          if [ "$GITHUB_REPOSITORY" = "hargata/lubelog" ] && [ -n "$DH_USER" ] && [ -n "$DH_PASS" ] && [ -n "$GHCR_PAT" ]; then
+            echo "push=true" >> "$GITHUB_OUTPUT"
+            echo "platforms=linux/amd64,linux/arm64" >> "$GITHUB_OUTPUT"
+          else
+            echo "push=false" >> "$GITHUB_OUTPUT"
+            echo "platforms=linux/amd64" >> "$GITHUB_OUTPUT"
+            echo "::notice::Registry secrets are not available in $GITHUB_REPOSITORY; building the image without pushing."
+          fi
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
 
       - name: Login to DockerHub
+        if: steps.mode.outputs.push == 'true'
         uses: docker/login-action@v4
         with:
           username: "${{ secrets.DH_USER }}"
           password: "${{ secrets.DH_PASS }}"
 
       - name: Login to GitHub Container Registry
+        if: steps.mode.outputs.push == 'true'
         uses: docker/login-action@v4
         with:
           registry: ghcr.io
@@ -45,7 +69,7 @@ jobs:
         uses: docker/build-push-action@v7
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
+          platforms: ${{ steps.mode.outputs.platforms }}
+          push: ${{ steps.mode.outputs.push == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
