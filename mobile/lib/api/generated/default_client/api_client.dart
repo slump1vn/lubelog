@@ -3,8 +3,26 @@
 import 'dart:convert' as convert;
 
 import 'package:dio/dio.dart'
-    show Dio, Options, ResponseType, CancelToken, FormData, MultipartFile;
+    show
+        Dio,
+        Options,
+        ResponseType,
+        CancelToken,
+        FormData,
+        MultipartFile,
+        DioMediaType;
 
+import 'models/ai_attach_payment_request.dart'
+    as models
+    show AiAttachPaymentRequest;
+import 'models/ai_draft.dart' as models show AiDraft;
+import 'models/assistant_chat_request.dart' as models show AssistantChatRequest;
+import 'models/assistant_history_page.dart' as models show AssistantHistoryPage;
+import 'models/assistant_photo_request_hint.dart'
+    as models
+    show AssistantPhotoRequestHint;
+import 'models/assistant_reply.dart' as models show AssistantReply;
+import 'models/assistant_suggestions.dart' as models show AssistantSuggestions;
 import 'models/budget.dart' as models show Budget;
 import 'models/dashboard.dart' as models show Dashboard;
 import 'models/food_analyze_request.dart' as models show FoodAnalyzeRequest;
@@ -15,6 +33,7 @@ import 'models/manual_transaction_request.dart'
     as models
     show ManualTransactionRequest;
 import 'models/me.dart' as models show Me;
+import 'models/operation_result.dart' as models show OperationResult;
 import 'models/receipt_reading.dart' as models show ReceiptReading;
 import 'models/reconciliation.dart' as models show Reconciliation;
 import 'models/session.dart' as models show Session;
@@ -766,5 +785,355 @@ class ApiClient {
       cancelToken: cancelToken,
     );
     return models.FoodScan.fromJson(response.data as Map<String, Object?>);
+  }
+
+  Future<models.AssistantSuggestions> assistantSuggestions({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "GET",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      headers: {...?options?.headers, 'Accept': "application/json"},
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/assistant/suggestions",
+      options: _options,
+      cancelToken: cancelToken,
+    );
+    return models.AssistantSuggestions.fromJson(
+      response.data as Map<String, Object?>,
+    );
+  }
+
+  Future<models.AssistantHistoryPage> assistantHistory({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    int? before,
+    int? limit,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "GET",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      headers: {...?options?.headers, 'Accept': "application/json"},
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/assistant/messages",
+      options: _options,
+      queryParameters: <String, Object?>{
+        if (before != null) "before": before,
+        if (limit != null) "limit": limit,
+      },
+      cancelToken: cancelToken,
+    );
+    return models.AssistantHistoryPage.fromJson(
+      response.data as Map<String, Object?>,
+    );
+  }
+
+  Future<models.AssistantReply> assistantSend({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    required models.AssistantChatRequest body,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "POST",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      contentType: "application/json",
+      headers: {
+        for (final entry
+            in (options?.headers ?? const <String, Object?>{}).entries)
+          if (entry.key.toLowerCase() != 'content-type') entry.key: entry.value,
+        'Accept': "application/json",
+      },
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/assistant/messages",
+      options: _options,
+      data: convert.jsonEncode(body),
+      cancelToken: cancelToken,
+    );
+    return models.AssistantReply.fromJson(
+      response.data as Map<String, Object?>,
+    );
+  }
+
+  Future<void> assistantClear({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "DELETE",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      headers: {...?options?.headers, 'Accept': "application/json"},
+      validateStatus: (status) => status != null && (status == 204),
+    );
+    await _transport.request<dynamic>(
+      "/api/v1/assistant/messages",
+      options: _options,
+      cancelToken: cancelToken,
+    );
+  }
+
+  Future<models.AssistantReply> assistantPhoto({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    required MultipartFile file,
+    models.AssistantPhotoRequestHint? hint,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "POST",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      contentType: "multipart/form-data",
+      headers: {
+        for (final entry
+            in (options?.headers ?? const <String, Object?>{}).entries)
+          if (entry.key.toLowerCase() != 'content-type') entry.key: entry.value,
+        'Accept': "application/json",
+      },
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final formData = FormData();
+    formData.files.add(MapEntry("file", file));
+    if (hint != null) {
+      formData.files.add(
+        MapEntry(
+          "hint",
+          MultipartFile.fromString(
+            hint.toJson().toString(),
+            contentType: DioMediaType.parse("text/plain"),
+          ),
+        ),
+      );
+    }
+    final response = await _transport.request<dynamic>(
+      "/api/v1/assistant/photo",
+      options: _options,
+      data: formData,
+      cancelToken: cancelToken,
+    );
+    return models.AssistantReply.fromJson(
+      response.data as Map<String, Object?>,
+    );
+  }
+
+  Future<models.OperationResult> assistantSaveDraft({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    required models.AiDraft body,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "POST",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      contentType: "application/json",
+      headers: {
+        for (final entry
+            in (options?.headers ?? const <String, Object?>{}).entries)
+          if (entry.key.toLowerCase() != 'content-type') entry.key: entry.value,
+        'Accept': "application/json",
+      },
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/assistant/drafts",
+      options: _options,
+      data: convert.jsonEncode(body),
+      cancelToken: cancelToken,
+    );
+    return models.OperationResult.fromJson(
+      response.data as Map<String, Object?>,
+    );
+  }
+
+  Future<models.OperationResult> assistantAttachPayment({
+    Map<String, Object?> extra = const {
+      "openapi.servers": [
+        {"url": "/"},
+      ],
+      "openapi.security": [
+        {"oauth": []},
+      ],
+      "openapi.securitySchemes": {
+        "oauth": {
+          "type": "oauth2",
+          "flows": {
+            "authorizationCode": {
+              "scopes": {},
+              "authorizationUrl": "/oauth/authorize",
+              "tokenUrl": "/oauth/token",
+              "refreshUrl": "/oauth/token",
+            },
+          },
+          "description": "Public clients `soitho-ios` (redirect `vn.digifusion.finance:/oauth/callback`) and `soitho-android` (redirect `vn.digifusion.soitho:/oauth/callback`), PKCE S256 required. Optional `device_name` form field on the code exchange names the device in Signed-in devices.",
+        },
+      },
+    },
+    CancelToken? cancelToken,
+    Options? options,
+    required models.AiAttachPaymentRequest body,
+  }) async {
+    final _options = (options ?? Options()).copyWith(
+      method: "POST",
+      responseType: ResponseType.json,
+      extra: {...?options?.extra, ...extra},
+      contentType: "application/json",
+      headers: {
+        for (final entry
+            in (options?.headers ?? const <String, Object?>{}).entries)
+          if (entry.key.toLowerCase() != 'content-type') entry.key: entry.value,
+        'Accept': "application/json",
+      },
+      validateStatus: (status) => status != null && (status == 200),
+    );
+    final response = await _transport.request<dynamic>(
+      "/api/v1/assistant/payments",
+      options: _options,
+      data: convert.jsonEncode(body),
+      cancelToken: cancelToken,
+    );
+    return models.OperationResult.fromJson(
+      response.data as Map<String, Object?>,
+    );
   }
 }

@@ -6,6 +6,12 @@ on:
       - "mobile/**"
       - "wwwroot/api/openapi-v1.json"
       - ".github/workflows/mobile.yml"
+  # Catch a stale API client before merge, not after (it broke main once).
+  pull_request:
+    paths:
+      - "mobile/**"
+      - "wwwroot/api/openapi-v1.json"
+      - ".github/workflows/mobile.yml"
   workflow_dispatch:
 
 permissions:
